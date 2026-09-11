@@ -1,0 +1,54 @@
+# ============================================================
+# Environment: DEV — Example tfvars (copy to terraform.tfvars)
+# ============================================================
+# cp environments/dev/terraform.tfvars.example environments/dev/terraform.tfvars
+# Then populate with real values. NEVER commit terraform.tfvars.
+# ============================================================
+
+organization_name = "example-org"
+aws_region        = "af-south-1"
+environment       = "dev"
+
+# Account root emails — must be unique globally
+security_account_email        = "security-dev@example.com"
+logging_account_email         = "logging-dev@example.com"
+shared_services_account_email = "shared-dev@example.com"
+development_account_email     = "dev@example.com"
+production_account_email      = "prod@example.com"
+
+# After first apply, populate these with the created account IDs
+security_account_id        = ""
+logging_account_id         = ""
+shared_services_account_id = ""
+
+# Governance
+owner       = "Platform Engineering"
+cost_center = "LAB001"
+
+# Region controls
+allowed_regions = ["af-south-1", "eu-west-1"]
+
+# Identity
+identity_center_admin_group = "CloudAdmins"
+
+# Security services
+guardduty_enabled    = true
+securityhub_enabled  = true
+config_enabled       = true
+
+# CloudTrail
+cloudtrail_bucket_name = "example-org-dev-cloudtrail"
+log_retention_days     = 90
+
+# Encryption
+kms_key_rotation_enabled = true
+
+# Storage
+s3_versioning_enabled = true
+
+# Backup
+backup_retention_days = 14
+
+# Budget alerting
+monthly_budget_usd  = 100
+budget_alert_email  = "cloudteam@example.com"

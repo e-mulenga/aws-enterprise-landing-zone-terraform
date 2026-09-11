@@ -1,0 +1,46 @@
+# ============================================================
+# Environment: PROD — Example tfvars
+# ============================================================
+# PRODUCTION — requires Change Advisory Board (CAB) approval
+# before any terraform apply. All changes must pass dev → test
+# before promotion. MFA required for all operator identities.
+# ============================================================
+
+organization_name = "acme-enterprise"
+aws_region        = "af-south-1"
+environment       = "prod"
+
+security_account_email        = "security@company.com"
+logging_account_email         = "logging@company.com"
+shared_services_account_email = "sharedservices@company.com"
+development_account_email     = "development@company.com"
+production_account_email      = "production@company.com"
+
+# Populate after first apply
+security_account_id        = ""
+logging_account_id         = ""
+shared_services_account_id = ""
+
+owner       = "Platform Engineering"
+cost_center = "SEC001"
+
+# Prod permits only primary + DR region
+allowed_regions = ["af-south-1", "eu-west-1"]
+
+identity_center_admin_group = "AWS-Administrators"
+
+# All security services mandatory in prod
+guardduty_enabled    = true
+securityhub_enabled  = true
+config_enabled       = true
+
+cloudtrail_bucket_name = "acme-enterprise-org-cloudtrail-prod"
+log_retention_days     = 365    # 1 year hot, transitions to Glacier at 90 days
+
+kms_key_rotation_enabled = true
+s3_versioning_enabled    = true
+
+backup_retention_days = 35      # 5-week rolling retention
+
+monthly_budget_usd = 5000
+budget_alert_email = "cloud-billing@company.com"

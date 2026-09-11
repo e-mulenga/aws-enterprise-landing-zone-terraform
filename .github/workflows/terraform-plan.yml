@@ -1,0 +1,202 @@
+# ============================================================
+# GitHub Actions — Terraform Plan (Pull Request Gate)
+# ============================================================
+# Runs on every PR targeting main.
+# - Authenticates to AWS via OIDC (no long-lived credentials)
+# - Runs tfsec and checkov security scans
+# - Posts plan output as a PR comment
+# - Fails fast on any security or validation error
+# ============================================================
+
+name: Terraform Plan
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.tf"
+      - "**.tfvars.example"
+      - ".github/workflows/terraform-*.yml"
+
+permissions:
+  id-token: write       # Required for OIDC
+  contents: read
+  pull-requests: write  # Post plan as PR comment
+  security-events: write # Upload SARIF results
+
+env:
+  TF_VERSION:   "1.7.5"
+  TF_LOG:       "WARN"
+  AWS_REGION:   "af-south-1"
+
+jobs:
+  # ---- Security Scan -----------------------------------------
+  security-scan:
+    name: Security Scan (tfsec + checkov)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-sarif-action@v1
+        with:
+          sarif_file: tfsec.sarif
+          soft_fail: false
+
+      - name: Upload tfsec SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: tfsec.sarif
+
+      - name: Run checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          output_format: sarif
+          output_file_path: checkov.sarif
+          soft_fail: false
+          skip_check: >-
+            CKV_AWS_144,CKV_AWS_145
+
+      - name: Upload checkov SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov.sarif
+
+  # ---- Terraform Validate ------------------------------------
+  validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    needs: security-scan
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: .
+
+      - name: Terraform Init (no backend)
+        run: |
+          terraform init -backend=false \
+            -input=false
+        working-directory: .
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: .
+
+  # ---- Plan per environment ----------------------------------
+  plan:
+    name: Plan (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+    needs: validate
+    environment: ${{ matrix.environment }}-plan   # Requires environment protection rules
+
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [dev, test, prod]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[format('AWS_PLAN_ROLE_ARN_{0}', upper(matrix.environment))] }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Plan-${{ github.run_id }}
+          role-duration-seconds: 1800
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="environments/${{ matrix.environment }}/backend.tf" \
+            -input=false \
+            -reconfigure
+        working-directory: .
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan \
+            -var-file="environments/${{ matrix.environment }}/terraform.tfvars" \
+            -out="plan-${{ matrix.environment }}.tfplan" \
+            -input=false \
+            -no-color 2>&1 | tee plan-output.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+        working-directory: .
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-${{ matrix.environment }}-${{ github.sha }}
+          path: plan-${{ matrix.environment }}.tfplan
+          retention-days: 5
+
+      - name: Comment plan on PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            const planOutput = fs.readFileSync('plan-output.txt', 'utf8');
+            const truncated = planOutput.length > 60000
+              ? planOutput.substring(0, 60000) + '\n\n... [truncated]'
+              : planOutput;
+
+            const body = [
+              `## Terraform Plan — \`${{ matrix.environment }}\``,
+              '',
+              '```hcl',
+              truncated,
+              '```',
+              '',
+              `> Plan generated from commit \`${{ github.sha }}\``,
+            ].join('\n');
+
+            // Delete old plan comments for this environment
+            const comments = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            for (const comment of comments.data) {
+              if (comment.body.includes(`Terraform Plan — \`${{ matrix.environment }}\``)) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+      - name: Fail on plan error
+        if: steps.plan.outputs.exitcode != '0' && steps.plan.outputs.exitcode != '2'
+        run: exit 1

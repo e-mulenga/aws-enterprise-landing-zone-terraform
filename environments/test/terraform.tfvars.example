@@ -1,0 +1,39 @@
+# ============================================================
+# Environment: TEST — Example tfvars
+# ============================================================
+
+organization_name = "example-org"
+aws_region        = "af-south-1"
+environment       = "test"
+
+security_account_email        = "security-test@example.com"
+logging_account_email         = "logging-test@example.com"
+shared_services_account_email = "shared-test@example.com"
+development_account_email     = "dev-test@example.com"
+production_account_email      = "prod-test@example.com"
+
+security_account_id        = ""
+logging_account_id         = ""
+shared_services_account_id = ""
+
+owner       = "Platform Engineering"
+cost_center = "TEST001"
+
+allowed_regions = ["af-south-1", "eu-west-1"]
+
+identity_center_admin_group = "CloudAdmins"
+
+guardduty_enabled    = true
+securityhub_enabled  = true
+config_enabled       = true
+
+cloudtrail_bucket_name = "example-org-test-cloudtrail"
+log_retention_days     = 180
+
+kms_key_rotation_enabled = true
+s3_versioning_enabled    = true
+
+backup_retention_days = 21
+
+monthly_budget_usd = 250
+budget_alert_email = "cloudteam@example.com"

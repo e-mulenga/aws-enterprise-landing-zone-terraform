@@ -1,0 +1,55 @@
+# ============================================================
+# AWS Enterprise Landing Zone — .gitignore
+# ============================================================
+
+# ----- Terraform State (NEVER commit) ----------------------
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# ----- Variable files with real values (NEVER commit) -------
+terraform.tfvars
+*.auto.tfvars
+secrets.tfvars
+environments/dev/terraform.tfvars
+environments/test/terraform.tfvars
+environments/prod/terraform.tfvars
+
+# ----- AWS credentials & secrets ---------------------------
+.aws/
+*.pem
+*.key
+*_rsa
+*.cer
+*.p12
+
+# ----- CI/CD & tooling artifacts ---------------------------
+.tfsec/
+.checkov/
+*.sarif
+plan.tfplan
+plan.json
+tfplan
+*.plan
+
+# ----- IDE & OS files --------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ----- Python / pre-commit ---------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pre-commit-config.yaml.bak
+
+# ----- Crash / debug logs ----------------------------------
+crash.log
+crash.*.log
