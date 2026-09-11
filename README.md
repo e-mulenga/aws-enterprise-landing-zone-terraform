@@ -1,7 +1,7 @@
 # AWS Enterprise Landing Zone
 
-[![Security Scan](https://github.com/your-org/aws-enterprise-landing-zone-terraform/actions/workflows/terraform-security-scan.yml/badge.svg)](https://github.com/your-org/aws-enterprise-landing-zone-terraform/actions)
-[![Terraform Plan](https://github.com/your-org/aws-enterprise-landing-zone-terraform/actions/workflows/terraform-plan.yml/badge.svg)](https://github.com/your-org/aws-enterprise-landing-zone-terraform/actions)
+[![Security Scan](https://github.com/e-mulenga/aws-enterprise-landing-zone-terraform/actions/workflows/terraform-security-scan.yml/badge.svg)](https://github.com/e-mulenga/aws-enterprise-landing-zone-terraform/actions)
+[![Terraform Plan](https://github.com/e-mulenga/aws-enterprise-landing-zone-terraform/actions/workflows/terraform-plan.yml/badge.svg)](https://github.com/e-mulenga/aws-enterprise-landing-zone-terraform/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Terraform](https://img.shields.io/badge/Terraform-%3E%3D1.6.0-623CE4.svg)](https://www.terraform.io)
 [![AWS Provider](https://img.shields.io/badge/AWS_Provider-~%3E5.40-FF9900.svg)](https://registry.terraform.io/providers/hashicorp/aws)
