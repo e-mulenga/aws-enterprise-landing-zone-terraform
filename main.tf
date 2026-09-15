@@ -34,12 +34,12 @@ module "accounts" {
 module "kms" {
   source = "./modules/kms"
 
-  environment              = var.environment
-  organization_name        = var.organization_name
-  key_rotation_enabled     = var.kms_key_rotation_enabled
-  security_account_id      = var.security_account_id
-  logging_account_id       = var.logging_account_id
-  management_account_id    = data.aws_caller_identity.current.account_id
+  environment           = var.environment
+  organization_name     = var.organization_name
+  key_rotation_enabled  = var.kms_key_rotation_enabled
+  security_account_id   = var.security_account_id
+  logging_account_id    = var.logging_account_id
+  management_account_id = data.aws_caller_identity.current.account_id
 }
 
 # ---- 4. Centralised Logging --------------------------------
@@ -119,10 +119,10 @@ module "security_hub" {
 module "scp" {
   source = "./modules/scp"
 
-  organization_id     = module.organization.organization_id
-  organization_root_id = module.organization.organization_root_id
-  allowed_regions     = var.allowed_regions
-  environment         = var.environment
+  organization_id      = module.organization.organization_id
+  organization_root_id = module.organization.root_id
+  allowed_regions      = var.allowed_regions
+  environment          = var.environment
 
   depends_on = [module.accounts]
 }
@@ -131,10 +131,10 @@ module "scp" {
 module "iam_identity_center" {
   source = "./modules/iam-identity-center"
 
-  environment        = var.environment
-  organization_name  = var.organization_name
-  admin_group_name   = var.identity_center_admin_group
-  accounts           = module.accounts.account_map
+  environment       = var.environment
+  organization_name = var.organization_name
+  admin_group_name  = var.identity_center_admin_group
+  accounts          = module.accounts.account_map
 
   depends_on = [module.accounts]
 }
@@ -155,12 +155,12 @@ module "backup" {
 module "monitoring" {
   source = "./modules/monitoring"
 
-  environment           = var.environment
-  organization_name     = var.organization_name
-  log_retention_days    = var.log_retention_days
-  monthly_budget_usd    = var.monthly_budget_usd
-  budget_alert_email    = var.budget_alert_email
-  cloudtrail_log_group  = module.cloudtrail.log_group_name
+  environment          = var.environment
+  organization_name    = var.organization_name
+  log_retention_days   = var.log_retention_days
+  monthly_budget_usd   = var.monthly_budget_usd
+  budget_alert_email   = var.budget_alert_email
+  cloudtrail_log_group = module.cloudtrail.log_group_name
 
   depends_on = [module.cloudtrail]
 }

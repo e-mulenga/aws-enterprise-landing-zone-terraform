@@ -3,7 +3,7 @@
 # ============================================================
 
 resource "aws_securityhub_account" "main" {
-  enable_default_standards = false
+  enable_default_standards  = false
   control_finding_generator = "SECURITY_CONTROL"
   auto_enable_controls      = true
 }
@@ -48,8 +48,8 @@ resource "aws_cloudwatch_event_rule" "sechub_critical" {
     detail-type = ["Security Hub Findings - Imported"]
     detail = {
       findings = {
-        Severity = { Label = ["CRITICAL", "HIGH"] }
-        Workflow  = { Status = ["NEW"] }
+        Severity    = { Label = ["CRITICAL", "HIGH"] }
+        Workflow    = { Status = ["NEW"] }
         RecordState = ["ACTIVE"]
       }
     }

@@ -32,3 +32,8 @@ output "workloads_prod_ou_id" {
   description = "Organisational Unit ID for Production workloads."
   value       = aws_organizations_organizational_unit.workloads_prod.id
 }
+
+output "infrastructure_ou_id" {
+  description = "Infrastructure OU ID"
+  value       = aws_organizations_organizational_unit.infrastructure.id
+}

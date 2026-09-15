@@ -50,7 +50,7 @@ resource "aws_ssoadmin_permission_set" "developer" {
 }
 
 resource "aws_ssoadmin_permission_set_inline_policy" "developer" {
-  inline_policy      = jsonencode({
+  inline_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {

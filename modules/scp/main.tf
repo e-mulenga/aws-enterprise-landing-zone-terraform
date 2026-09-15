@@ -21,15 +21,15 @@ resource "aws_organizations_policy" "deny_public_s3" {
         }
       },
       {
-        Sid    = "DenyDisableBlockPublicAccess"
-        Effect = "Deny"
-        Action = "s3:PutBucketPublicAccessBlock"
+        Sid      = "DenyDisableBlockPublicAccess"
+        Effect   = "Deny"
+        Action   = "s3:PutBucketPublicAccessBlock"
         Resource = "*"
         Condition = {
           StringEquals = {
             "s3:PublicAccessBlockConfiguration/BlockPublicAcls"       = "false"
             "s3:PublicAccessBlockConfiguration/BlockPublicPolicy"     = "false"
-            "s3:PublicAccessBlockConfiguration/IgnorePublicAcls"     = "false"
+            "s3:PublicAccessBlockConfiguration/IgnorePublicAcls"      = "false"
             "s3:PublicAccessBlockConfiguration/RestrictPublicBuckets" = "false"
           }
         }
@@ -123,7 +123,7 @@ resource "aws_organizations_policy" "deny_disable_security_services" {
       Effect = "Deny"
       Action = [
         "guardduty:DeleteDetector", "guardduty:DisassociateFromMasterAccount",
-        "guardduty:DisassociateMembers",  "guardduty:StopMonitoringMembers",
+        "guardduty:DisassociateMembers", "guardduty:StopMonitoringMembers",
         "securityhub:DisableSecurityHub", "securityhub:DeleteHub",
         "config:DeleteConfigurationRecorder", "config:DeleteDeliveryChannel",
         "config:StopConfigurationRecorder",
@@ -143,9 +143,9 @@ resource "aws_organizations_policy" "require_imdsv2" {
   content = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Sid    = "RequireIMDSv2"
-      Effect = "Deny"
-      Action = "ec2:RunInstances"
+      Sid      = "RequireIMDSv2"
+      Effect   = "Deny"
+      Action   = "ec2:RunInstances"
       Resource = "arn:aws:ec2:*:*:instance/*"
       Condition = {
         StringNotEquals = { "ec2:MetadataHttpTokens" = "required" }
@@ -163,9 +163,9 @@ resource "aws_organizations_policy" "deny_unencrypted_transit" {
   content = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Sid    = "DenyNonTLSAccess"
-      Effect = "Deny"
-      Action = ["s3:*", "sqs:*", "sns:*"]
+      Sid      = "DenyNonTLSAccess"
+      Effect   = "Deny"
+      Action   = ["s3:*", "sqs:*", "sns:*"]
       Resource = "*"
       Condition = {
         Bool = { "aws:SecureTransport" = "false" }

@@ -92,82 +92,82 @@ resource "aws_cloudwatch_dashboard" "main" {
   dashboard_body = jsonencode({
     widgets = [
       {
-        type = "text"
-        x    = 0
-        y    = 0
-        width = 24
+        type   = "text"
+        x      = 0
+        y      = 0
+        width  = 24
         height = 2
         properties = {
           markdown = "# AWS Enterprise Landing Zone — ${upper(var.environment)} Security Dashboard\n> Centralised security posture for **${var.organization_name}**"
         }
       },
       {
-        type = "metric"
-        x    = 0
-        y    = 2
-        width = 8
+        type   = "metric"
+        x      = 0
+        y      = 2
+        width  = 8
         height = 6
         properties = {
-          title  = "Unauthorised API Calls"
-          period = 300
-          stat   = "Sum"
-          view   = "timeSeries"
+          title   = "Unauthorised API Calls"
+          period  = 300
+          stat    = "Sum"
+          view    = "timeSeries"
           metrics = [["LandingZone/SecurityEvents", "${var.organization_name}-${var.environment}-unauthorized-api-calls"]]
         }
       },
       {
-        type = "metric"
-        x    = 8
-        y    = 2
-        width = 8
+        type   = "metric"
+        x      = 8
+        y      = 2
+        width  = 8
         height = 6
         properties = {
-          title  = "Root Account Logins"
-          period = 300
-          stat   = "Sum"
-          view   = "timeSeries"
+          title   = "Root Account Logins"
+          period  = 300
+          stat    = "Sum"
+          view    = "timeSeries"
           metrics = [["LandingZone/SecurityEvents", "${var.organization_name}-${var.environment}-root-login"]]
         }
       },
       {
-        type = "metric"
-        x    = 16
-        y    = 2
-        width = 8
+        type   = "metric"
+        x      = 16
+        y      = 2
+        width  = 8
         height = 6
         properties = {
-          title  = "IAM Policy Changes"
-          period = 300
-          stat   = "Sum"
-          view   = "timeSeries"
+          title   = "IAM Policy Changes"
+          period  = 300
+          stat    = "Sum"
+          view    = "timeSeries"
           metrics = [["LandingZone/SecurityEvents", "${var.organization_name}-${var.environment}-iam-policy-changes"]]
         }
       },
       {
-        type = "metric"
-        x    = 0
-        y    = 8
-        width = 12
+        type   = "metric"
+        x      = 0
+        y      = 8
+        width  = 12
         height = 6
         properties = {
-          title  = "Security Group Changes"
-          period = 300
-          stat   = "Sum"
-          view   = "timeSeries"
+          title   = "Security Group Changes"
+          period  = 300
+          stat    = "Sum"
+          view    = "timeSeries"
           metrics = [["LandingZone/SecurityEvents", "${var.organization_name}-${var.environment}-security-group-changes"]]
         }
       },
       {
-        type = "metric"
-        x    = 12
-        y    = 8
-        width = 12
+        type   = "metric"
+        x      = 12
+        y      = 8
+        width  = 12
         height = 6
         properties = {
-          title  = "Console Logins Without MFA"
-          period = 300
-          stat   = "Sum"
-          view   = "timeSeries"
+          title   = "Console Logins Without MFA"
+          period  = 300
+          stat    = "Sum"
+          view    = "timeSeries"
           metrics = [["LandingZone/SecurityEvents", "${var.organization_name}-${var.environment}-console-signin-without-mfa"]]
         }
       }

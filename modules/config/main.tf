@@ -30,15 +30,15 @@ resource "aws_iam_role_policy" "config_s3" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect   = "Allow"
-      Action   = ["s3:PutObject"]
-      Resource = "arn:aws:s3:::${var.s3_bucket_name}/AWSLogs/${data.aws_caller_identity.current.account_id}/Config/*"
+      Effect    = "Allow"
+      Action    = ["s3:PutObject"]
+      Resource  = "arn:aws:s3:::${var.s3_bucket_name}/AWSLogs/${data.aws_caller_identity.current.account_id}/Config/*"
       Condition = { StringEquals = { "s3:x-amz-acl" = "bucket-owner-full-control" } }
-    }, {
+      }, {
       Effect   = "Allow"
       Action   = ["s3:GetBucketAcl"]
       Resource = "arn:aws:s3:::${var.s3_bucket_name}"
-    }, {
+      }, {
       Effect   = "Allow"
       Action   = ["kms:Decrypt", "kms:GenerateDataKey"]
       Resource = var.kms_key_arn
@@ -80,26 +80,26 @@ resource "aws_config_configuration_recorder_status" "main" {
 # ---- Managed Config Rules -----------------------------------
 locals {
   managed_rules = {
-    "s3-bucket-public-read-prohibited"             = {}
-    "s3-bucket-public-write-prohibited"            = {}
-    "s3-bucket-server-side-encryption-enabled"     = {}
-    "s3-bucket-ssl-requests-only"                  = {}
-    "s3-bucket-versioning-enabled"                 = {}
-    "cloudtrail-enabled"                           = {}
-    "cloudtrail-encryption-enabled"                = {}
-    "cloudtrail-log-file-validation-enabled"       = {}
-    "guardduty-enabled-centralized"                = {}
-    "securityhub-enabled"                          = {}
-    "iam-root-access-key-check"                    = {}
-    "mfa-enabled-for-iam-console-access"           = {}
-    "iam-user-mfa-enabled"                         = {}
-    "iam-password-policy"                          = {}
-    "ec2-imdsv2-check"                             = {}
-    "restricted-ssh"                               = {}
-    "vpc-flow-logs-enabled"                        = {}
-    "kms-cmk-not-scheduled-for-deletion"           = {}
-    "encrypted-volumes"                            = {}
-    "rds-storage-encrypted"                        = {}
+    "s3-bucket-public-read-prohibited"         = {}
+    "s3-bucket-public-write-prohibited"        = {}
+    "s3-bucket-server-side-encryption-enabled" = {}
+    "s3-bucket-ssl-requests-only"              = {}
+    "s3-bucket-versioning-enabled"             = {}
+    "cloudtrail-enabled"                       = {}
+    "cloudtrail-encryption-enabled"            = {}
+    "cloudtrail-log-file-validation-enabled"   = {}
+    "guardduty-enabled-centralized"            = {}
+    "securityhub-enabled"                      = {}
+    "iam-root-access-key-check"                = {}
+    "mfa-enabled-for-iam-console-access"       = {}
+    "iam-user-mfa-enabled"                     = {}
+    "iam-password-policy"                      = {}
+    "ec2-imdsv2-check"                         = {}
+    "restricted-ssh"                           = {}
+    "vpc-flow-logs-enabled"                    = {}
+    "kms-cmk-not-scheduled-for-deletion"       = {}
+    "encrypted-volumes"                        = {}
+    "rds-storage-encrypted"                    = {}
   }
 }
 

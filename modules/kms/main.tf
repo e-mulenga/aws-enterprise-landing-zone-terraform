@@ -23,18 +23,18 @@ resource "aws_kms_key" "cloudtrail" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "EnableRootAccess"
-        Effect = "Allow"
+        Sid       = "EnableRootAccess"
+        Effect    = "Allow"
         Principal = { AWS = "arn:${local.partition}:iam::${local.account_id}:root" }
-        Action   = "kms:*"
-        Resource = "*"
+        Action    = "kms:*"
+        Resource  = "*"
       },
       {
-        Sid    = "AllowCloudTrailEncrypt"
-        Effect = "Allow"
+        Sid       = "AllowCloudTrailEncrypt"
+        Effect    = "Allow"
         Principal = { Service = "cloudtrail.amazonaws.com" }
-        Action   = ["kms:GenerateDataKey*", "kms:DescribeKey"]
-        Resource = "*"
+        Action    = ["kms:GenerateDataKey*", "kms:DescribeKey"]
+        Resource  = "*"
         Condition = {
           StringLike = {
             "kms:EncryptionContext:aws:cloudtrail:arn" = "arn:${local.partition}:cloudtrail:*:${var.management_account_id}:trail/*"
@@ -42,11 +42,11 @@ resource "aws_kms_key" "cloudtrail" {
         }
       },
       {
-        Sid    = "AllowLoggingAccountDecrypt"
-        Effect = "Allow"
+        Sid       = "AllowLoggingAccountDecrypt"
+        Effect    = "Allow"
         Principal = { AWS = "arn:${local.partition}:iam::${var.logging_account_id}:root" }
-        Action   = ["kms:Decrypt", "kms:DescribeKey"]
-        Resource = "*"
+        Action    = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource  = "*"
       }
     ]
   })
@@ -69,18 +69,18 @@ resource "aws_kms_key" "config" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "EnableRootAccess"
-        Effect = "Allow"
+        Sid       = "EnableRootAccess"
+        Effect    = "Allow"
         Principal = { AWS = "arn:${local.partition}:iam::${local.account_id}:root" }
-        Action   = "kms:*"
-        Resource = "*"
+        Action    = "kms:*"
+        Resource  = "*"
       },
       {
-        Sid    = "AllowConfigService"
-        Effect = "Allow"
+        Sid       = "AllowConfigService"
+        Effect    = "Allow"
         Principal = { Service = "config.amazonaws.com" }
-        Action   = ["kms:Decrypt", "kms:GenerateDataKey"]
-        Resource = "*"
+        Action    = ["kms:Decrypt", "kms:GenerateDataKey"]
+        Resource  = "*"
       }
     ]
   })
@@ -103,18 +103,18 @@ resource "aws_kms_key" "guardduty" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "EnableRootAccess"
-        Effect = "Allow"
+        Sid       = "EnableRootAccess"
+        Effect    = "Allow"
         Principal = { AWS = "arn:${local.partition}:iam::${local.account_id}:root" }
-        Action   = "kms:*"
-        Resource = "*"
+        Action    = "kms:*"
+        Resource  = "*"
       },
       {
-        Sid    = "AllowGuardDutyService"
-        Effect = "Allow"
+        Sid       = "AllowGuardDutyService"
+        Effect    = "Allow"
         Principal = { Service = "guardduty.amazonaws.com" }
-        Action   = ["kms:GenerateDataKey"]
-        Resource = "*"
+        Action    = ["kms:GenerateDataKey"]
+        Resource  = "*"
       }
     ]
   })
@@ -137,11 +137,11 @@ resource "aws_kms_key" "backup" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "EnableRootAccess"
-        Effect = "Allow"
+        Sid       = "EnableRootAccess"
+        Effect    = "Allow"
         Principal = { AWS = "arn:${local.partition}:iam::${local.account_id}:root" }
-        Action   = "kms:*"
-        Resource = "*"
+        Action    = "kms:*"
+        Resource  = "*"
       }
     ]
   })

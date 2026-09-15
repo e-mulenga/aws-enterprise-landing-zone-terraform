@@ -43,6 +43,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "cloudtrail" {
     id     = "archive-and-expire"
     status = "Enabled"
 
+    filter {
+      prefix = ""
+    }
+
     transition {
       days          = 90
       storage_class = "STANDARD_IA"
@@ -72,39 +76,39 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "AWSCloudTrailAclCheck"
-        Effect = "Allow"
+        Sid       = "AWSCloudTrailAclCheck"
+        Effect    = "Allow"
         Principal = { Service = "cloudtrail.amazonaws.com" }
-        Action   = "s3:GetBucketAcl"
-        Resource = aws_s3_bucket.cloudtrail.arn
+        Action    = "s3:GetBucketAcl"
+        Resource  = aws_s3_bucket.cloudtrail.arn
         Condition = {
           StringEquals = { "aws:SourceOrgID" = var.organization_id }
         }
       },
       {
-        Sid    = "AWSCloudTrailWrite"
-        Effect = "Allow"
+        Sid       = "AWSCloudTrailWrite"
+        Effect    = "Allow"
         Principal = { Service = "cloudtrail.amazonaws.com" }
-        Action   = "s3:PutObject"
-        Resource = "${aws_s3_bucket.cloudtrail.arn}/AWSLogs/*"
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.cloudtrail.arn}/AWSLogs/*"
         Condition = {
           StringEquals = {
-            "s3:x-amz-acl"  = "bucket-owner-full-control"
+            "s3:x-amz-acl"    = "bucket-owner-full-control"
             "aws:SourceOrgID" = var.organization_id
           }
         }
       },
       {
-        Sid    = "DenyNonTLSRequests"
-        Effect = "Deny"
+        Sid       = "DenyNonTLSRequests"
+        Effect    = "Deny"
         Principal = "*"
         Action    = "s3:*"
         Resource  = ["${aws_s3_bucket.cloudtrail.arn}", "${aws_s3_bucket.cloudtrail.arn}/*"]
         Condition = { Bool = { "aws:SecureTransport" = "false" } }
       },
       {
-        Sid    = "DenyDeleteObject"
-        Effect = "Deny"
+        Sid       = "DenyDeleteObject"
+        Effect    = "Deny"
         Principal = "*"
         Action    = ["s3:DeleteObject", "s3:DeleteObjectVersion"]
         Resource  = "${aws_s3_bucket.cloudtrail.arn}/*"
@@ -156,18 +160,18 @@ resource "aws_s3_bucket_policy" "config" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "AllowConfigService"
-        Effect = "Allow"
+        Sid       = "AllowConfigService"
+        Effect    = "Allow"
         Principal = { Service = "config.amazonaws.com" }
-        Action   = ["s3:GetBucketAcl", "s3:ListBucket", "s3:PutObject"]
-        Resource = [aws_s3_bucket.config.arn, "${aws_s3_bucket.config.arn}/*"]
+        Action    = ["s3:GetBucketAcl", "s3:ListBucket", "s3:PutObject"]
+        Resource  = [aws_s3_bucket.config.arn, "${aws_s3_bucket.config.arn}/*"]
         Condition = {
           StringEquals = { "aws:SourceOrgID" = var.organization_id }
         }
       },
       {
-        Sid    = "DenyNonTLS"
-        Effect = "Deny"
+        Sid       = "DenyNonTLS"
+        Effect    = "Deny"
         Principal = "*"
         Action    = "s3:*"
         Resource  = ["${aws_s3_bucket.config.arn}", "${aws_s3_bucket.config.arn}/*"]
