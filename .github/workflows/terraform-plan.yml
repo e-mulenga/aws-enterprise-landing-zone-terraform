@@ -13,9 +13,6 @@ name: Terraform Plan
 on:
   pull_request:
   push:
-    branches:
-      - main
-      - develop
 
 jobs:
   terraform-plan:
@@ -28,17 +25,16 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Terraform Init (No Backend)
+        run: terraform init -backend=false
+
       - name: Terraform Format
         run: terraform fmt -check -recursive
-
-      - name: Terraform Init
-        run: terraform init -backend=false
 
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Terraform Plan (Portfolio Mode)
+      - name: Portfolio Mode
         run: |
           echo "Public repository mode."
-          echo "No AWS credentials available."
-          echo "Skipping real infrastructure planning."
+          echo "Terraform plan skipped because deployment requires protected AWS resources."
