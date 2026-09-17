@@ -1,8 +1,27 @@
+# ============================================================
+# deploy.yml — Hardened OIDC Deployment Workflow
+# ============================================================
+# SECURITY: Uses OIDC federation — NO long-lived AWS credentials
+# stored in GitHub. AWS_ROLE_ARN secret stores only the IAM role
+# ARN (not an access key or secret).
+#
+# OIDC flow:
+#   1. GitHub generates a signed OIDC token for this workflow run
+#   2. AWS IAM validates the token against the OIDC provider trust
+#   3. AWS issues a short-lived STS credential (expires ≤ 1 hour)
+#   4. Credentials are injected into the runner environment variables
+#   5. Token is NEVER written to logs or artifacts
+#
+# Required GitHub Secrets (Role ARNs only — NOT credentials):
+#   AWS_ROLE_ARN_DEV   = arn:aws:iam::<dev-account>:role/<role-name>
+#   AWS_ROLE_ARN_TEST  = arn:aws:iam::<test-account>:role/<role-name>
+#   AWS_ROLE_ARN_PROD  = arn:aws:iam::<prod-account>:role/<role-name>
+# ============================================================
+
 name: Deploy to AWS
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -10,16 +29,31 @@ permissions:
 
 jobs:
   deploy:
+    if: ${{ secrets.AWS_ROLE_ARN_DEV != '' }}
+
     runs-on: ubuntu-latest
+
+    environment:
+      name: dev
+
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Authenticate to AWS via OIDC
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
           aws-region: af-south-1
 
-      - name: Verify AWS Identity
-        run: aws sts get-caller-identity
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var-file=environments/dev/terraform.tfvars
+
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve

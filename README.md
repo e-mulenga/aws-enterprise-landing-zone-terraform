@@ -473,6 +473,27 @@ aws-enterprise-landing-zone-terraform/
 
 ---
 
+### Deployment Workflows
+
+The public repository includes infrastructure validation and security scanning workflows.
+
+Actual deployment workflows require:
+
+- AWS Accounts
+- Terraform Remote State
+- CodeStar Connections
+- OIDC Federation
+- GitHub Environment Secrets
+
+These credentials are intentionally excluded from the public repository.
+
+Development, Test, and Production deployment workflows are gated using GitHub Environments and AWS OIDC Federation.
+
+This approach demonstrates enterprise-grade DevSecOps practices while protecting cloud credentials and operational infrastructure.
+```
+
+---
+
 ### Step 1 — Bootstrap Remote State
 
 Run once per environment before `terraform init`:

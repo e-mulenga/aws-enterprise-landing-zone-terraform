@@ -22,15 +22,15 @@
 ## Architecture DR Design
 
 ```
-PRIMARY (af-south-1)                    DR (eu-west-1)
-┌─────────────────────────┐             ┌────────────────────── ──┐
-│  Organisation Trail     │──S3 CRR──▶ │  S3 Log Replica         │
-│  GuardDuty (Primary)    │            │   GuardDuty (Secondary) │
-│  Security Hub           │            │   Security Hub (standby) │
-│  KMS CMKs               │──replica─▶ │  KMS Multi-Region Keys │
-│  Config Recorder        │            │   Config Recorder        │
-│  CloudWatch Alarms      │            │   CloudWatch Alarms      │
-└─────────────────────────┘            └─────────────────────────┘
+  PRIMARY (af-south-1)                         DR (eu-west-1)
+┌─────────────────────────┐              ┌──────────────────────── ─┐
+│  Organisation Trail     │──S3 CRR──▶  │   S3 Log Replica          │
+│  GuardDuty (Primary)    │              │  GuardDuty (Secondary) │
+│  Security Hub           │              │   Security Hub (standby) │
+│  KMS CMKs               │──replica─▶  │   KMS Multi-Region Keys  │
+│  Config Recorder        │              │   Config Recorder        │
+│  CloudWatch Alarms      │              │   CloudWatch Alarms      │
+└─────────────────────────┘              └──────────────────────────┘
         │                                        │
         └──────── AWS Organizations ─────────────┘
                   (Global — no DR needed)
