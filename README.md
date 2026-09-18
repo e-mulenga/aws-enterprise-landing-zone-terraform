@@ -1021,12 +1021,12 @@ flowchart TD
 
 | Repository | Role | Relationship |
 |---|---|---|
-| **[aws-enterprise-landing-zone](https://github.com/your-org/aws-enterprise-landing-zone-terraform)** | Foundation | **YOU ARE HERE** |
-| **[terraform-enterprise-module-library](https://github.com/your-org/terraform-enterprise-module-library)** | Reusable modules | Consumes: account IDs, KMS keys, VPC outputs |
-| **[aws-devsecops-pipeline](https://github.com/your-org/aws-devsecops-pipeline)** | CI/CD platform | Consumes: IAM Identity Center, account structure |
-| **[aws-cloud-security-operations-center](https://github.com/your-org/aws-cloud-security-operations-center)** | SOC automation | Consumes: GuardDuty, Security Hub, CloudTrail |
-| **[aws-secure-eks-platform](https://github.com/your-org/aws-secure-eks-platform)** | Container platform | Consumes: VPC, IAM, KMS from module library |
-| **[multi-cloud-governance](https://github.com/your-org/multi-cloud-governance)** | Unified governance | Consumes: Security Hub findings from this Landing Zone |
+| **[aws-enterprise-landing-zone](https://github.com/e-mulenga/aws-enterprise-landing-zone-terraform)** | Foundation | **YOU ARE HERE** |
+| **[terraform-enterprise-module-library](https://github.com/e-mulenga/terraform-enterprise-module-library)** | Reusable modules | Consumes: account IDs, KMS keys, VPC outputs |
+| **[aws-devsecops-pipeline](https://github.com/e-mulenga/aws-devsecops-pipeline)** | CI/CD platform | Consumes: IAM Identity Center, account structure |
+| **[aws-cloud-security-operations-center](https://github.com/e-mulenga/aws-cloud-security-operations-center)** | SOC automation | Consumes: GuardDuty, Security Hub, CloudTrail |
+| **[aws-secure-eks-platform](https://github.com/e-mulenga/aws-secure-eks-platform)** | Container platform | Consumes: VPC, IAM, KMS from module library |
+| **[multi-cloud-governance](https://github.com/e-mulenga/multi-cloud-governance)** | Unified governance | Consumes: Security Hub findings from this Landing Zone |
 
 ### Dependency Map
 
