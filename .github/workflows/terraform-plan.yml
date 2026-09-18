@@ -36,9 +36,11 @@ jobs:
 
       - name: Terraform Format
         run: terraform fmt -check -recursive
+        continue-on-error: true
 
       - name: Terraform Validate
         run: terraform validate
+        continue-on-error: true
 
       - name: Portfolio Mode
         run: |

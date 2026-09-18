@@ -126,4 +126,5 @@ resource "aws_cloudtrail" "main" {
   name           = "my-trail"
   s3_bucket_name = aws_s3_bucket.trail_bucket.id
   sns_topic_name = aws_sns_topic.trail_notifications.arn
+  kms_key_id     = aws_kms_key.cloudtrail.arn
 }

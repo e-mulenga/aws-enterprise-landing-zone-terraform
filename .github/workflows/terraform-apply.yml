@@ -19,14 +19,16 @@ permissions:
 
 jobs:
   deploy:
-    if: ${{ secrets.AWS_ROLE_ARN_DEV != '' }}
-
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy
+      - name: Portfolio Mode Deploy Check
         run: |
-          echo "Deployment workflow enabled only when AWS secrets exist."
+          if [ "${{ secrets.AWS_ROLE_ARN_DEV }}" = "" ]; then
+            echo "AWS credentials not configured. Skipping apply for public portfolio repository."
+          else
+            echo "Running deployment..."
+          fi
