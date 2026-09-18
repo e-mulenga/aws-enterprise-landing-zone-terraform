@@ -12,6 +12,12 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: read
+  security-events: write
+  id-token: write
+
 jobs:
   security:
     runs-on: ubuntu-latest

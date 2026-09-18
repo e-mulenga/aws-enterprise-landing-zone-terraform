@@ -119,3 +119,11 @@ resource "aws_ssoadmin_account_assignment" "admin_assignments" {
   target_id          = each.value
   target_type        = "AWS_ACCOUNT"
 }
+
+# ---- CloudTrail ------------------------------------
+
+resource "aws_cloudtrail" "main" {
+  name           = "my-trail"
+  s3_bucket_name = aws_s3_bucket.trail_bucket.id
+  sns_topic_name = aws_sns_topic.trail_notifications.arn
+}

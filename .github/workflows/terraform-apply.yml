@@ -11,6 +11,12 @@ name: Terraform Apply
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: read
+  security-events: write
+  id-token: write
+
 jobs:
   deploy:
     if: ${{ secrets.AWS_ROLE_ARN_DEV != '' }}
