@@ -179,3 +179,32 @@ variable "budget_alert_email" {
   description = "Email address that receives budget alert notifications."
   default     = ""
 }
+
+# ---- Networking ----------------------------------------
+variable "vpc_cidr" {
+  type = string
+}
+
+variable "private_subnets" {
+  description = "Private subnet CIDRs"
+  type        = list(string)
+}
+
+variable "public_subnets" {
+  description = "Public subnet CIDRs"
+  type        = list(string)
+}
+
+variable "database_subnets" {
+  description = "Database subnet CIDRs"
+  type        = list(string)
+}
+
+variable "intra_subnet_cidrs" {
+  type = list(string)
+}
+
+variable "dr_region" {
+  description = "Disaster Recovery AWS Region"
+  type        = string
+}

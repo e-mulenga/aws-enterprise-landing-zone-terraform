@@ -12,7 +12,9 @@ variable "key_rotation_enabled" {
 }
 
 variable "management_account_id" {
-  type = string
+  type        = string
+  default     = ""
+  description = "AWS Management Account ID (optional for managed keys)"
 }
 
 variable "security_account_id" {

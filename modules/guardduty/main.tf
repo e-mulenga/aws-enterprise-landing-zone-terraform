@@ -5,48 +5,40 @@
 resource "aws_guardduty_detector" "main" {
   enable = var.enabled
 
+  datasources {
+    s3_logs { enable = true }
+    kubernetes {
+      audit_logs {
+        enable = true
+      }
+    }
+    malware_protection {
+      scan_ec2_instance_with_findings {
+        ebs_volumes { enable = true }
+      }
+    }
+  }
+
   tags = { Name = "${var.organization_name}-${var.environment}-guardduty" }
-}
-
-resource "aws_guardduty_detector_feature" "s3_logs" {
-  detector_id = aws_guardduty_detector.main.id
-  name        = "S3_DATA_EVENTS"
-  status      = "ENABLED"
-}
-
-resource "aws_guardduty_detector_feature" "kubernetes_audit_logs" {
-  detector_id = aws_guardduty_detector.main.id
-  name        = "EKS_AUDIT_LOGS"
-  status      = "ENABLED"
-}
-
-resource "aws_guardduty_detector_feature" "malware_protection" {
-  detector_id = aws_guardduty_detector.main.id
-  name        = "EBS_MALWARE_PROTECTION"
-  status      = "ENABLED"
 }
 
 resource "aws_guardduty_organization_configuration" "main" {
   auto_enable_organization_members = "ALL"
   detector_id                      = aws_guardduty_detector.main.id
-}
 
-resource "aws_guardduty_organization_configuration_feature" "s3_logs" {
-  detector_id = aws_guardduty_detector.main.id
-  name        = "S3_DATA_EVENTS"
-  auto_enable = "ALL"
-}
-
-resource "aws_guardduty_organization_configuration_feature" "kubernetes_audit_logs" {
-  detector_id = aws_guardduty_detector.main.id
-  name        = "EKS_AUDIT_LOGS"
-  auto_enable = "ALL"
-}
-
-resource "aws_guardduty_organization_configuration_feature" "malware_protection" {
-  detector_id = aws_guardduty_detector.main.id
-  name        = "EBS_MALWARE_PROTECTION"
-  auto_enable = "ALL"
+  datasources {
+    s3_logs { auto_enable = true }
+    kubernetes {
+      audit_logs {
+        enable = true
+      }
+    }
+    malware_protection {
+      scan_ec2_instance_with_findings {
+        ebs_volumes { auto_enable = true }
+      }
+    }
+  }
 }
 
 # Publish findings to S3

@@ -1,9 +1,9 @@
-variable "environment" { 
-  type = string 
+variable "environment" {
+  type = string
 }
 
-variable "organization_name" { 
-  type = string 
+variable "organization_name" {
+  type = string
 }
 
 variable "enabled" {
@@ -11,10 +11,10 @@ variable "enabled" {
   default = true
 }
 
-variable "findings_bucket" { 
-  type = string 
+variable "findings_bucket" {
+  type = string
 }
 
-variable "kms_key_arn" { 
-  type = string 
+variable "kms_key_arn" {
+  type = string
 }

@@ -24,3 +24,7 @@ variable "budget_alert_email" {
 variable "cloudtrail_log_group" {
   type = string
 }
+
+variable "aws_region" {
+  type = string
+}

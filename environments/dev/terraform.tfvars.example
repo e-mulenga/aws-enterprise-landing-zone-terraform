@@ -26,7 +26,26 @@ owner       = "Platform Engineering"
 cost_center = "LAB001"
 
 # Region controls
-allowed_regions = ["af-south-1", "eu-west-1"]
+allowed_regions = ["af-south-1","eu-west-1"]
+
+dr_region = "eu-west-1"
+
+vpc_cidr = "your-cidr-range"
+
+private_subnet_cidrs = [
+  "your-subnet-cidr-range/24",
+  "your-subnet-cidr-range/24"
+]
+
+public_subnet_cidrs = [
+  "your-subnet-cidr-range/24",
+  "your-subnet-cidr-range/24"
+]
+
+intra_subnet_cidrs = [
+  "your-subnet-cidr-range/24",
+  "your-subnet-cidr-range/24"
+]
 
 # Identity
 identity_center_admin_group = "CloudAdmins"

@@ -43,9 +43,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "cloudtrail" {
     id     = "archive-and-expire"
     status = "Enabled"
 
-    filter {
-      prefix = ""
-    }
+    filter {}
 
     transition {
       days          = 90
@@ -61,12 +59,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "cloudtrail" {
 
     noncurrent_version_expiration { noncurrent_days = 90 }
   }
-}
-
-resource "aws_s3_bucket_logging" "cloudtrail" {
-  bucket        = aws_s3_bucket.cloudtrail.id
-  target_bucket = aws_s3_bucket.access_logs.id
-  target_prefix = "cloudtrail-logs/"
 }
 
 resource "aws_s3_bucket_policy" "cloudtrail" {
@@ -148,12 +140,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "config" {
   }
 }
 
-resource "aws_s3_bucket_logging" "config" {
-  bucket        = aws_s3_bucket.config.id
-  target_bucket = aws_s3_bucket.access_logs.id
-  target_prefix = "config-logs/"
-}
-
 resource "aws_s3_bucket_policy" "config" {
   bucket = aws_s3_bucket.config.id
   policy = jsonencode({
@@ -196,11 +182,6 @@ resource "aws_s3_bucket_public_access_block" "guardduty" {
   restrict_public_buckets = true
 }
 
-resource "aws_s3_bucket_versioning" "guardduty" {
-  bucket = aws_s3_bucket.guardduty.id
-  versioning_configuration { status = "Enabled" }
-}
-
 resource "aws_s3_bucket_server_side_encryption_configuration" "guardduty" {
   bucket = aws_s3_bucket.guardduty.id
   rule {
@@ -210,12 +191,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "guardduty" {
     }
     bucket_key_enabled = true
   }
-}
-
-resource "aws_s3_bucket_logging" "guardduty" {
-  bucket        = aws_s3_bucket.guardduty.id
-  target_bucket = aws_s3_bucket.access_logs.id
-  target_prefix = "guardduty-logs/"
 }
 
 # ---- Access Logging Bucket (meta-logging) -------------------
@@ -231,15 +206,4 @@ resource "aws_s3_bucket_public_access_block" "access_logs" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_versioning" "access_logs" {
-  bucket = aws_s3_bucket.access_logs.id
-  versioning_configuration { status = "Enabled" }
-}
-
-resource "aws_s3_bucket_logging" "access_logs" {
-  bucket        = aws_s3_bucket.access_logs.id
-  target_bucket = aws_s3_bucket.access_logs.id
-  target_prefix = "access-logs/"
 }

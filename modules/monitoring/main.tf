@@ -98,6 +98,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 24
         height = 2
         properties = {
+          region   = var.aws_region
           markdown = "# AWS Enterprise Landing Zone — ${upper(var.environment)} Security Dashboard\n> Centralised security posture for **${var.organization_name}**"
         }
       },
@@ -108,6 +109,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 8
         height = 6
         properties = {
+          region  = var.aws_region
           title   = "Unauthorised API Calls"
           period  = 300
           stat    = "Sum"
@@ -122,6 +124,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 8
         height = 6
         properties = {
+          region  = var.aws_region
           title   = "Root Account Logins"
           period  = 300
           stat    = "Sum"
@@ -136,6 +139,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 8
         height = 6
         properties = {
+          region  = var.aws_region
           title   = "IAM Policy Changes"
           period  = 300
           stat    = "Sum"
@@ -150,6 +154,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 12
         height = 6
         properties = {
+          region  = var.aws_region
           title   = "Security Group Changes"
           period  = 300
           stat    = "Sum"
@@ -164,6 +169,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 12
         height = 6
         properties = {
+          region  = var.aws_region
           title   = "Console Logins Without MFA"
           period  = 300
           stat    = "Sum"

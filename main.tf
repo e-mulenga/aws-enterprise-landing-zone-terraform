@@ -16,10 +16,6 @@ module "accounts" {
   source = "./modules/account-vending"
 
   organization_id               = module.organization.organization_id
-  security_ou_id                = module.organization.security_ou_id
-  workloads_dev_ou_id           = module.organization.workloads_dev_ou_id
-  workloads_prod_ou_id          = module.organization.workloads_prod_ou_id
-  infrastructure_ou_id          = module.organization.infrastructure_ou_id
   security_account_email        = var.security_account_email
   logging_account_email         = var.logging_account_email
   shared_services_account_email = var.shared_services_account_email
@@ -155,6 +151,8 @@ module "backup" {
 module "monitoring" {
   source = "./modules/monitoring"
 
+  aws_region = var.aws_region
+
   environment          = var.environment
   organization_name    = var.organization_name
   log_retention_days   = var.log_retention_days
@@ -165,6 +163,26 @@ module "monitoring" {
   depends_on = [module.cloudtrail]
 }
 
-# ---- Data Sources ------------------------------------------
-data "aws_caller_identity" "current" {}
-data "aws_partition" "current" {}
+# ---- 13. Networking ------------------------------------------
+module "networking" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.8"
+
+  name = "${var.organization_name}-${var.environment}-vpc"
+
+  cidr = var.vpc_cidr
+
+  azs = [
+    "${var.aws_region}a",
+    "${var.aws_region}b"
+  ]
+
+  public_subnets   = var.public_subnets
+  private_subnets  = var.private_subnets
+  database_subnets = var.database_subnets
+
+  enable_nat_gateway = true
+  single_nat_gateway = true
+
+  create_database_subnet_group = true
+}

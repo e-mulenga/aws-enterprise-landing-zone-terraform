@@ -1,13 +1,13 @@
-variable "environment" { 
-  type = string 
+variable "environment" {
+  type = string
 }
 
-variable "organization_name" { 
-  type = string 
+variable "organization_name" {
+  type = string
 }
 
-variable "cloudtrail_bucket" { 
-  type = string 
+variable "cloudtrail_bucket" {
+  type = string
 }
 
 variable "s3_versioning_enabled" {
@@ -15,8 +15,8 @@ variable "s3_versioning_enabled" {
   default = true
 }
 
-variable "kms_key_arn" { 
-  type = string 
+variable "kms_key_arn" {
+  type = string
 }
 
 variable "log_retention_days" {
@@ -24,10 +24,10 @@ variable "log_retention_days" {
   default = 365
 }
 
-variable "organization_id" { 
-  type = string 
+variable "organization_id" {
+  type = string
 }
 
-variable "management_account_id" { 
-  type = string 
+variable "management_account_id" {
+  type = string
 }

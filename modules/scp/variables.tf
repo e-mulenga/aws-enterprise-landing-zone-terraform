@@ -1,5 +1,5 @@
-variable "organization_id" { 
-  type = string 
+variable "organization_id" {
+  type = string
 }
 
 variable "organization_root_id" {
@@ -7,10 +7,10 @@ variable "organization_root_id" {
   default = ""
 }
 
-variable "allowed_regions" { 
-  type = list(string) 
+variable "allowed_regions" {
+  type = list(string)
 }
 
 variable "environment" {
-  type = string 
+  type = string
 }

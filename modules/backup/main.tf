@@ -47,7 +47,7 @@ resource "aws_backup_plan" "main" {
     schedule          = "cron(0 2 * * ? *)" # 02:00 UTC daily
 
     lifecycle {
-      cold_storage_after = 35
+      cold_storage_after = 30
       delete_after       = var.retention_days
     }
 
