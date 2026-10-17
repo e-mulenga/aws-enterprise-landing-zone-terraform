@@ -181,30 +181,36 @@ variable "budget_alert_email" {
 }
 
 # ---- Networking ----------------------------------------
-variable "vpc_cidr" {
-  type = string
+
+variable "allow_public_web_ingress" {
+  description = "Allow 80/443 from the internet on each default security group."
+  type        = bool
+  default     = true
 }
 
-variable "private_subnets" {
-  description = "Private subnet CIDRs"
-  type        = list(string)
+variable "single_nat_gateway" {
+  description = "true = one NAT per region (cheaper). false = one NAT per AZ (resilient)."
+  type        = bool
+  default     = true
 }
 
-variable "public_subnets" {
-  description = "Public subnet CIDRs"
-  type        = list(string)
+# One object per region. CIDRs MUST NOT overlap if you plan to peer the VPCs.
+variable "af_south_1" {
+  description = "Network settings for af-south-1 (Cape Town)."
+  type = object({
+    vpc_cidr         = string
+    public_subnets   = list(string)
+    private_subnets  = list(string)
+    database_subnets = list(string)
+  })
 }
 
-variable "database_subnets" {
-  description = "Database subnet CIDRs"
-  type        = list(string)
-}
-
-variable "intra_subnet_cidrs" {
-  type = list(string)
-}
-
-variable "dr_region" {
-  description = "Disaster Recovery AWS Region"
-  type        = string
+variable "eu_west_1" {
+  description = "Network settings for eu-west-1 (Ireland)."
+  type = object({
+    vpc_cidr         = string
+    public_subnets   = list(string)
+    private_subnets  = list(string)
+    database_subnets = list(string)
+  })
 }

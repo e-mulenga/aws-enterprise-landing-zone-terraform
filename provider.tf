@@ -37,6 +37,32 @@ provider "aws" {
   }
 }
 
+# ---- Networking module --------------------------
+
+# Provider aliases are static: Terraform cannot create providers with
+# for_each/count, so each region gets its own block.
+provider "aws" {
+  alias  = "af_south_1"
+  region = "af-south-1"
+
+  default_tags {
+    tags = {
+      Project = var.organization_name
+    }
+  }
+}
+
+provider "aws" {
+  alias  = "eu_west_1"
+  region = "eu-west-1"
+
+  default_tags {
+    tags = {
+      Project = var.organization_name
+    }
+  }
+}
+
 # ---- Security Account (cross-account role assumption) ------
 provider "aws" {
   alias  = "security"

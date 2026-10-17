@@ -62,3 +62,80 @@ output "monitoring_dashboard_name" {
   description = "Name of the CloudWatch dashboard."
   value       = module.monitoring.dashboard_name
 }
+
+# ------- Networking / Security Group / NAT Outputs ---------------
+
+output "af_south_1" {
+  description = "Primary Region Networking outputs for af-south-1."
+  value = {
+    region              = module.networking_af_south_1.region
+    vpc_id              = module.networking_af_south_1.vpc_id
+    vpc_cidr_block      = module.networking_af_south_1.vpc_cidr_block
+    azs                 = module.networking_af_south_1.azs
+    public_subnet_ids   = module.networking_af_south_1.public_subnet_ids
+    private_subnet_ids  = module.networking_af_south_1.private_subnet_ids
+    database_subnet_ids = module.networking_af_south_1.database_subnet_ids
+    db_subnet_group     = module.networking_af_south_1.database_subnet_group_name
+    nat_public_ips      = module.networking_af_south_1.nat_public_ips
+  }
+}
+
+output "eu_west_1" {
+  description = "DR Region Networking outputs for eu-west-1."
+  value = {
+    region              = module.networking_eu_west_1.region
+    vpc_id              = module.networking_eu_west_1.vpc_id
+    vpc_cidr_block      = module.networking_eu_west_1.vpc_cidr_block
+    azs                 = module.networking_eu_west_1.azs
+    public_subnet_ids   = module.networking_eu_west_1.public_subnet_ids
+    private_subnet_ids  = module.networking_eu_west_1.private_subnet_ids
+    database_subnet_ids = module.networking_eu_west_1.database_subnet_ids
+    db_subnet_group     = module.networking_eu_west_1.database_subnet_group_name
+    nat_public_ips      = module.networking_eu_west_1.nat_public_ips
+  }
+}
+
+output "vpc_id" {
+  description = "Primary VPC ID"
+  value       = module.networking_af_south_1.vpc_id
+}
+
+output "vpc_cidr_block" {
+  description = "Primary VPC CIDR"
+  value       = module.networking_af_south_1.vpc_cidr_block
+}
+
+output "public_subnet_ids" {
+  description = "Primary public subnet IDs"
+  value       = module.networking_af_south_1.public_subnet_ids
+}
+
+output "private_subnet_ids" {
+  description = "Primary private subnet IDs"
+  value       = module.networking_af_south_1.private_subnet_ids
+}
+
+output "database_subnet_ids" {
+  description = "Primary database subnet IDs"
+  value       = module.networking_af_south_1.database_subnet_ids
+}
+
+output "database_subnet_group_name" {
+  description = "Primary database subnet group"
+  value       = module.networking_af_south_1.database_subnet_group_name
+}
+
+output "default_security_group_id" {
+  description = "Default security group ID for the primary VPC"
+  value       = module.networking_af_south_1.default_security_group_id
+}
+
+output "nat_public_ips" {
+  description = "NAT Gateway public IP addresses in the primary region"
+  value       = module.networking_af_south_1.nat_public_ips
+}
+
+output "availability_zones" {
+  description = "Availability Zones used in the primary region"
+  value       = module.networking_af_south_1.azs
+}

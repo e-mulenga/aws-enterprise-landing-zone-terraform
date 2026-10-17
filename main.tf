@@ -164,25 +164,47 @@ module "monitoring" {
 }
 
 # ---- 13. Networking ------------------------------------------
-module "networking" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.8"
 
-  name = "${var.organization_name}-${var.environment}-vpc"
+module "networking_af_south_1" {
+  source = "./modules/networking"
 
-  cidr = var.vpc_cidr
+  providers = {
+    aws = aws
+  }
 
-  azs = [
-    "${var.aws_region}a",
-    "${var.aws_region}b"
-  ]
-
-  public_subnets   = var.public_subnets
-  private_subnets  = var.private_subnets
-  database_subnets = var.database_subnets
-
-  enable_nat_gateway = true
-  single_nat_gateway = true
-
-  create_database_subnet_group = true
+  organization_name        = var.organization_name
+  environment              = var.environment
+  vpc_cidr                 = var.af_south_1.vpc_cidr
+  public_subnets           = var.af_south_1.public_subnets
+  private_subnets          = var.af_south_1.private_subnets
+  database_subnets         = var.af_south_1.database_subnets
+  single_nat_gateway       = var.single_nat_gateway
+  allow_public_web_ingress = var.allow_public_web_ingress
 }
+
+module "networking_eu_west_1" {
+  source = "./modules/networking"
+
+  providers = {
+    aws = aws.eu_west_1
+  }
+
+  organization_name        = var.organization_name
+  environment              = var.environment
+  vpc_cidr                 = var.eu_west_1.vpc_cidr
+  public_subnets           = var.eu_west_1.public_subnets
+  private_subnets          = var.eu_west_1.private_subnets
+  database_subnets         = var.eu_west_1.database_subnets
+  single_nat_gateway       = var.single_nat_gateway
+  allow_public_web_ingress = var.allow_public_web_ingress
+}
+
+# Guard: overlapping CIDRs would block peering / Transit Gateway later.
+
+check "regional_vpc_cidrs_are_different" {
+  assert {
+    condition     = var.af_south_1.vpc_cidr != var.eu_west_1.vpc_cidr
+    error_message = "The af-south-1 and eu-west-1 VPC CIDRs must be different."
+  }
+}
+
