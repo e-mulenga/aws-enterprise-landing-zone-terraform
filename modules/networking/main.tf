@@ -35,6 +35,19 @@ module "vpc" {
     Name = "${local.name}-vpc"
   })
 
+  # Subnet Name tags
+  public_subnet_names = [
+    for az in local.azs : "${local.name}-public-${az}"
+  ]
+
+  private_subnet_names = [
+    for az in local.azs : "${local.name}-private-${az}"
+  ]
+
+  database_subnet_names = [
+    for az in local.azs : "${local.name}-db-${az}"
+  ]
+
   # One NAT per AZ when single_nat_gateway = false
 
   create_database_subnet_group = true
