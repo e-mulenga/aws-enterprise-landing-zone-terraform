@@ -1,5 +1,11 @@
 # ============================================================
-# AWS Enterprise Landing Zone — Root Outputs
+# AWS Enterprise Landing Zone - Root Outputs (the consumer contract)
+# ============================================================
+# Other repositories consume these through terraform_remote_state
+# (see docs/consumption-guide.md). Keep names stable; bump
+# contract_schema_version in locals.tf for any breaking change.
+#
+# A value is null when its service is not deployed in this environment.
 # ============================================================
 
 output "organization_id" {
@@ -10,6 +16,11 @@ output "organization_id" {
 output "organization_arn" {
   description = "AWS Organisation ARN."
   value       = module.organization.organization_arn
+}
+
+output "ou_ids" {
+  description = "Organisational Unit IDs by name."
+  value       = module.organization.ou_ids
 }
 
 output "security_account_id" {
@@ -37,36 +48,61 @@ output "production_account_id" {
   value       = module.accounts.production_account_id
 }
 
-output "cloudtrail_bucket_name" {
-  description = "Name of the S3 bucket storing CloudTrail logs."
-  value       = module.logging.cloudtrail_bucket_name
+# ---------- Route 53 / certificates --------------------------
+output "route53_zone_id" {
+  description = "Existing hosted zone ID. null if route53_domain_name is not set."
+  value       = module.dns.route53_zone_id
 }
 
-output "cloudtrail_trail_arn" {
-  description = "ARN of the organisation CloudTrail trail."
-  value       = module.cloudtrail.trail_arn
+output "route53_domain_name" {
+  description = "Existing domain name."
+  value       = module.dns.route53_domain_name
 }
 
-output "guardduty_detector_id" {
-  description = "GuardDuty detector ID in the Security account."
-  value       = module.guardduty.detector_id
+output "acm_certificate_arn" {
+  description = "Wildcard certificate in the primary Region."
+  value       = module.dns.certificate_arn
 }
 
-output "kms_cloudtrail_key_arn" {
-  description = "ARN of the KMS key encrypting CloudTrail logs."
-  value       = module.kms.cloudtrail_key_arn
-  sensitive   = true
+output "acm_cloudfront_certificate_arn" {
+  description = "Wildcard certificate in us-east-1 for CloudFront."
+  value       = module.dns.cloudfront_certificate_arn
 }
 
-output "monitoring_dashboard_name" {
-  description = "Name of the CloudWatch dashboard."
-  value       = module.monitoring.dashboard_name
+# ---------- Platform -----------------------------------------
+output "github_oidc_provider_arn" {
+  description = "GitHub OIDC provider ARN. null when github_oidc_mode = disabled."
+  value       = try(module.github_oidc[0].github_oidc_provider_arn, null)
+}
+
+output "github_oidc_role_arns" {
+  description = "Optional GitHub Actions role ARNs."
+  value       = try(module.github_oidc[0].role_arns, {})
+}
+
+output "ecr_repository_urls" {
+  description = "Shared ECR repository URLs by short name."
+  value       = try(module.ecr[0].ecr_repository_urls, {})
+}
+
+# ---------- Backup -------------------------------------------
+output "backup_vault_name" {
+  description = "Primary backup vault. null when enable_backup = false."
+  value       = try(module.backup[0].vault_name, null)
+}
+
+output "backup_vault_arn" {
+  value = try(module.backup[0].vault_arn, null)
+}
+
+output "backup_dr_vault_arn" {
+  description = "DR vault in eu-west-1. null unless cross-region copy is on."
+  value       = try(module.backup[0].dr_vault_arn, null)
 }
 
 # ------- Networking / Security Group / NAT Outputs ---------------
-
 output "af_south_1" {
-  description = "Primary Region Networking outputs for af-south-1."
+  description = "Primary Region (af-south-1) networking."
   value = {
     region              = module.networking_af_south_1.region
     vpc_id              = module.networking_af_south_1.vpc_id
@@ -81,7 +117,7 @@ output "af_south_1" {
 }
 
 output "eu_west_1" {
-  description = "DR Region Networking outputs for eu-west-1."
+  description = "Disaster recovery Region (eu-west-1) networking."
   value = {
     region              = module.networking_eu_west_1.region
     vpc_id              = module.networking_eu_west_1.vpc_id
@@ -139,3 +175,319 @@ output "availability_zones" {
   description = "Availability Zones used in the primary region"
   value       = module.networking_af_south_1.azs
 }
+
+variable "enable_nat_gateway_primary" {
+  type        = bool
+  description = "NAT Gateway in the primary Region. About USD 35+/month each; keep false in dev/test."
+  default     = false
+}
+
+variable "enable_nat_gateway_dr" {
+  type        = bool
+  description = "NAT Gateway in the DR Region. Keep false."
+  default     = false
+}
+
+variable "single_nat_gateway" {
+  description = "true = one NAT per region (cheaper). false = one NAT per AZ (resilient)."
+  type        = bool
+  default     = true
+}
+
+variable "allow_public_web_ingress" {
+  type        = bool
+  description = "Open 80/443 to the internet on each default security group. Keep false."
+  default     = false
+}
+
+variable "gateway_endpoints" {
+  type        = list(string)
+  description = "Free gateway endpoints created in both VPCs."
+  default     = ["s3"]
+}
+
+variable "interface_endpoints" {
+  type        = list(string)
+  description = "Optional interface endpoints (billed hourly per AZ). See docs/cost-analysis.md."
+  default     = []
+}
+
+# ---------- KMS / Encryption -----------
+
+# Customer managed key ARNs; null in dev.
+output "kms_key_arns" {
+  value = {
+    cloudtrail = module.kms.cloudtrail_key_arn
+    config     = module.kms.config_key_arn
+    guardduty  = module.kms.guardduty_key_arn
+    backup     = module.kms.backup_key_arn
+  }
+  sensitive = true
+}
+
+output "kms_cloudtrail_key_arn" {
+  description = "ARN of the KMS key encrypting CloudTrail logs."
+  value       = module.kms.cloudtrail_key_arn
+  sensitive   = true
+}
+
+output "key_strategy" {
+  description = "aws-managed (dev/test) or customer-managed (prod)."
+  value       = module.kms.key_strategy
+}
+
+output "shared_kms_keys" {
+  description = "Catalogue of shared-rds, shared-s3, shared-backup, shared-analytics and shared-ai keys (alias_name works in both strategies)."
+  value       = module.kms.shared_kms_keys
+}
+
+output "shared_ai_key_arn" {
+  description = "shared-ai-key ARN. null with AWS managed keys."
+  value       = module.kms.shared_ai_key_arn
+}
+
+output "cloudtrail_key_arn" {
+  description = "null when using AWS managed keys."
+  value       = module.kms.cloudtrail_key_arn
+  sensitive   = true
+}
+
+output "cloudtrail_key_id" {
+  description = "null when using AWS managed keys."
+  value       = module.kms.cloudtrail_key_id
+}
+
+output "config_key_arn" {
+  description = "null when using AWS managed keys."
+  value       = module.kms.config_key_arn
+  sensitive   = true
+}
+
+output "guardduty_key_arn" {
+  description = "null when using AWS managed keys."
+  value       = module.kms.guardduty_key_arn
+  sensitive   = true
+}
+
+output "backup_key_arn" {
+  description = "null when using AWS managed keys."
+  value       = module.kms.backup_key_arn
+  sensitive   = true
+}
+
+# ----------Security / Logging / Buckets -------------
+
+output "log_buckets" {
+  description = "Name, ARN, region and source (created/existing) of every log bucket."
+  value       = module.logging.buckets
+}
+
+output "cloudtrail_bucket_name" {
+  value = module.logging.cloudtrail_bucket_name
+}
+
+output "cloudtrail_bucket_arn" {
+  value = module.logging.cloudtrail_bucket_arn
+}
+
+output "config_bucket_name" {
+  value = module.logging.config_bucket_name
+}
+
+output "config_bucket_arn" {
+  value = module.logging.config_bucket_arn
+}
+
+output "guardduty_bucket_name" {
+  value = module.logging.guardduty_bucket_name
+}
+
+output "guardduty_bucket_arn" {
+  value = module.logging.guardduty_bucket_arn
+}
+
+output "access_logs_bucket_name" {
+  value = module.logging.access_logs_bucket_name
+}
+
+output "access_logs_bucket_arn" {
+  value = module.logging.access_logs_bucket_arn
+}
+
+output "cloudtrail_trail_arn" {
+  value = try(module.cloudtrail[0].trail_arn, null)
+}
+
+output "cloudtrail_log_group_name" {
+  value = try(module.cloudtrail[0].log_group_name, var.existing_cloudtrail_log_group == "" ? null : var.existing_cloudtrail_log_group)
+}
+
+# ---- Audit & detection services (cost money, OFF by default) -----------
+variable "enable_cloudtrail" {
+  type        = bool
+  description = "Create the trail with Terraform. false when a trail already exists (console / other stack)."
+  default     = false
+}
+
+variable "is_organization_trail" {
+  type        = bool
+  description = "Organization trail. Needs the management or a delegated admin account."
+  default     = false
+}
+
+variable "cloudtrail_data_events_enabled" {
+  type        = bool
+  description = "S3 and Lambda data events (billed per event)."
+  default     = false
+}
+
+variable "cloudtrail_insights_enabled" {
+  type        = bool
+  description = "CloudTrail Insights (billed per event analysed)."
+  default     = false
+}
+
+variable "existing_cloudtrail_log_group" {
+  type        = string
+  description = "CloudWatch Logs group of an existing trail, used by the dashboard and alarms when this stack does not create the trail."
+  default     = ""
+}
+
+variable "enable_config" {
+  type        = bool
+  description = "Create the AWS Config recorder, delivery channel and rules (billed per item and per evaluation). AWS allows one recorder per Region."
+  default     = false
+}
+
+variable "existing_config_recorder_name" {
+  type        = string
+  description = "Name of an existing Config recorder, re-exported as config_recorder_name when enable_config = false."
+  default     = ""
+}
+
+variable "config_recording_frequency" {
+  type    = string
+  default = "CONTINUOUS"
+}
+
+variable "config_rule_set" {
+  type        = string
+  description = "core = 9 rules, full = 20 rules."
+  default     = "core"
+}
+
+variable "guardduty_enabled" {
+  type        = bool
+  description = "Create / manage GuardDuty. 30-day free trial, then usage-based."
+  default     = false
+}
+
+variable "create_guardduty_detector" {
+  type        = bool
+  description = "false = a detector already exists in the Region; look it up instead."
+  default     = true
+}
+
+variable "existing_guardduty_detector_id" {
+  type        = string
+  description = "Detector ID re-exported as guardduty_detector_id when guardduty_enabled = false."
+  default     = ""
+}
+
+variable "guardduty_organization_aware" {
+  type    = bool
+  default = false
+}
+
+variable "securityhub_enabled" {
+  type        = bool
+  description = "Enable Security Hub. 30-day free trial, then billed per protected resource."
+  default     = false
+}
+
+variable "securityhub_standards" {
+  type        = list(string)
+  description = "Standards to subscribe to: fsbp, cis, nist."
+  default     = ["fsbp"]
+}
+
+variable "securityhub_organization_aware" {
+  type    = bool
+  default = false
+}
+
+variable "alert_email" {
+  type        = string
+  description = "Email for security alerts and budget notifications."
+  default     = ""
+}
+
+# ---------- Monitoring --------------
+output "landing_zone_dashboard_name" {
+  description = "CloudWatch dashboard name."
+  value       = try(module.monitoring[0].dashboard_name, null)
+}
+
+output "monitoring_dashboard_name" {
+  description = "Legacy name for landing_zone_dashboard_name."
+  value       = try(module.monitoring[0].dashboard_name, null)
+}
+
+output "monitoring_alarm_names" {
+  description = "Names of CloudWatch monitoring alarms"
+  value       = try(one(module.monitoring[*].alarm_names), [])
+}
+
+output "monitoring_topic_arn" {
+  description = "SNS topic used by monitoring alarms."
+  value       = try(module.monitoring[0].alerts_topic_arn, null)
+}
+
+# ---------- Detection ----------------------------------------
+output "guardduty_detector_id" {
+  description = "GuardDuty detector ID (managed or existing). null if none."
+  value       = local.guardduty_detector_id
+}
+
+output "config_recorder_name" {
+  description = "AWS Config recorder name (managed or existing). null if none."
+  value       = local.config_recorder_name
+}
+
+output "security_hub_enabled" {
+  description = "true when this stack enables Security Hub."
+  value       = var.securityhub_enabled
+}
+
+output "security_hub_account_id" {
+  description = "Account that runs Security Hub. null when disabled."
+  value       = var.securityhub_enabled ? data.aws_caller_identity.current.account_id : null
+}
+
+# ---------- AI governance ------------------------------------
+output "bedrock_guardrails_enabled" {
+  value = try(module.ai_governance[0].bedrock_guardrails_enabled, false)
+}
+
+output "bedrock_guardrail_id" {
+  value = try(module.ai_governance[0].guardrail_id, null)
+}
+
+output "bedrock_guardrail_version" {
+  value = try(module.ai_governance[0].guardrail_version, null)
+}
+
+output "bedrock_approved_models_policy_arn" {
+  value = try(module.ai_governance[0].approved_models_policy_arn, null)
+}
+
+output "ai_audit_bucket_name" {
+  value = try(module.ai_governance[0].ai_audit_bucket_name, null)
+}
+
+output "contract_schema_version" {
+  description = "Version of the output contract. Changes only on breaking renames."
+  value       = local.contract_schema_version
+}
+
+

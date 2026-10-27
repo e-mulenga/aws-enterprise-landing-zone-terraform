@@ -42,7 +42,7 @@ This repository delivers a **production-grade, security-first AWS Landing Zone**
 
 The Landing Zone provisions a complete organisational hierarchy with dedicated Security, Logging, Shared Services, Development, and Production accounts. Every security control is automated: organisations-level CloudTrail, GuardDuty with malware protection, Security Hub with CIS v1.4 and FSBP standards, AWS Config with 20+ managed rules, seven Service Control Policies, KMS encryption for all services, and a 9-alarm CloudWatch security dashboard.
 
-This is **position 1 of 6** in an Enterprise Cloud Platform Portfolio, producing the account structure, IAM Identity Center configuration, and security baselines consumed by every downstream repository.
+This is **position 1 of 6** in an Enterprise Cloud Platform Portfolio, producing the account structure, IAM Identity Center configuration, and security baselines consumed by every downstream repository. All downstream repositories consume Landing Zone outputs through Terraform remote state and do not recreate shared infrastructure.
 
 **Key outcomes:**
 - Zero-trust multi-account architecture with complete audit trail
@@ -260,6 +260,8 @@ flowchart TD
 | AWS Backup | Cross-account backup with vault lock | Prod |
 | AWS Budgets | Cost alerting at 80% and 100% | Management |
 | AWS IAM | Cross-account deployment roles, Config recorder role | All accounts |
+| DNS | Route53 governance and certificate management | |
+| AI Governance | Responsible AI controls, Bedrock guardrails and model governance | AI/ML Accounts |
 
 ---
 
@@ -391,21 +393,26 @@ aws-enterprise-landing-zone-terraform/
 ├── provider.tf                    # Terraform version + provider config (NO versions.tf)
 ├── main.tf                        # Root module — orchestrates all child modules
 ├── variables.tf                   # All input variables with validation
-├── outputs.tf                     # Key outputs consumed by downstream repos
+├── outputs.tf                     # Shared outputs consumed by downstream repositories
 │
 ├── modules/
-│   ├── organization/              # AWS Organizations + OU hierarchy
-│   ├── account-vending/           # Member account provisioning
-│   ├── kms/                       # CMKs: CloudTrail, Config, GuardDuty, Backup
-│   ├── logging/                   # S3 buckets: CloudTrail, Config, GuardDuty
-│   ├── cloudtrail/                # Organisation trail with CloudWatch Logs
-│   ├── config/                    # Recorder, delivery channel, 20 managed rules
-│   ├── guardduty/                 # Detector, org config, S3 publishing, SNS alerts
-│   ├── security-hub/              # CIS v1.4 + FSBP + NIST 800-53 standards
-│   ├── scp/                       # 7 Service Control Policies
-│   ├── iam-identity-center/       # Permission sets, groups, account assignments
-│   ├── backup/                    # Vault, vault lock, daily + weekly plans
-│   └── monitoring/                # CloudWatch alarms, dashboard, AWS Budgets
+│   ├── organization/              # AWS Organizations, OU hierarchy and governance foundations
+│   ├── account-vending/           # Automated AWS account provisioning, placement and lifecycle management
+│   ├── kms/                       # Encryption foundations(KMS strategy, customer-managed keys, aliases and shared encryption controls)
+│   ├── ai-governance/             # Amazon Bedrock guardrails, approved model governance, AI audit logging and responsible AI controls
+│   ├── github-oidc/               # GitHub Actions federation via OpenID Connect and short-lived deployment credentials
+│   ├── ecr/                       # Shared enterprise container registry platform, lifecycle policies and image governance
+│   ├── networking/                # Multi-region networking foundation (VPCs, subnets, routing, DNS integration and endpoints)
+│   ├── logging/                   # Centralized logging bucket integration for CloudTrail, AWS Config, GuardDuty and access logs
+│   ├── cloudtrail/                # Organizational audit trail, CloudWatch integration and API activity visibility
+│   ├── config/                    # Configuration compliance, resource inventory, compliance recording and governance controls
+│   ├── guardduty/                 # Threat detection, anomaly detection, malware detection and security alerting
+│   ├── security-hub/              # Security posture management, compliance standards and centralized findings aggregation
+│   ├── scp/                       # Preventive governance controls using Service Control Policies (SCPs)
+│   ├── iam-identity-center/       # Workforce identity management, permission sets, group access and account assignments
+│   ├── dns/                       # Route53 hosted zones, DNS governance and ACM certificate management
+│   ├── backup/                    # Backup governance, recovery vaults, retention policies and disaster recovery protection
+│   └── monitoring/                # Operational visibility, CloudWatch dashboards, alarms, EventBridge integration, SNS notifications and budgets
 │
 ├── environments/
 │   ├── dev/

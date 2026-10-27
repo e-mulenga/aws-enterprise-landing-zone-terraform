@@ -3,10 +3,21 @@
 # ============================================================
 
 # ---- SNS Alert Topic ----------------------------------------
+# CloudWatch alarms and EventBridge cannot publish to a topic encrypted with the
+# AWS managed key aws/sns, so the topic is unencrypted by default. Prod can pass
+# a customer managed key that trusts cloudwatch.amazonaws.com and events.amazonaws.com.
 resource "aws_sns_topic" "alerts" {
   name              = "${var.organization_name}-${var.environment}-platform-alerts"
-  kms_master_key_id = "alias/aws/sns"
+  kms_master_key_id = var.sns_kms_key_id
   tags              = { Name = "${var.organization_name}-${var.environment}-platform-alerts" }
+}
+
+resource "aws_sns_topic_subscription" "email" {
+  count = var.budget_alert_email != "" ? 1 : 0
+
+  topic_arn = aws_sns_topic.alerts.arn
+  protocol  = "email"
+  endpoint  = var.budget_alert_email
 }
 
 # ---- CloudTrail Metric Filters & Alarms ---------------------
@@ -51,8 +62,15 @@ locals {
   }
 }
 
+# Metric filters and alarms need a CloudTrail log group. If the trail was created
+# in the console without CloudWatch Logs, leave cloudtrail_log_group empty.
+# Each alarm costs about USD 0.10 per month.
+locals {
+  active_alarms = var.enable_security_alarms && var.cloudtrail_log_group != "" ? local.cloudtrail_alarms : {}
+}
+
 resource "aws_cloudwatch_log_metric_filter" "alarms" {
-  for_each = local.cloudtrail_alarms
+  for_each = local.active_alarms
 
   name           = "${var.organization_name}-${var.environment}-${each.key}"
   pattern        = each.value.pattern
@@ -67,7 +85,7 @@ resource "aws_cloudwatch_log_metric_filter" "alarms" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "alarms" {
-  for_each = local.cloudtrail_alarms
+  for_each = local.active_alarms
 
   alarm_name          = "${var.organization_name}-${var.environment}-${each.key}"
   alarm_description   = each.value.description
@@ -85,99 +103,178 @@ resource "aws_cloudwatch_metric_alarm" "alarms" {
   tags = { Severity = "HIGH" }
 }
 
+# ---- Findings feed (GuardDuty, Security Hub, Config) ---------
+# EventBridge rules for AWS service events are free. Events land in a small
+# log group that the dashboard queries with Logs Insights.
+resource "aws_cloudwatch_log_group" "findings" {
+  count = var.enable_findings_feed ? 1 : 0
+
+  name              = "/aws/events/${var.organization_name}-${var.environment}-security-findings"
+  retention_in_days = var.findings_retention_days
+
+  tags = { Name = "${var.organization_name}-${var.environment}-security-findings" }
+}
+
+data "aws_iam_policy_document" "findings_feed" {
+  count = var.enable_findings_feed ? 1 : 0
+
+  statement {
+    effect  = "Allow"
+    actions = ["logs:CreateLogStream", "logs:PutLogEvents"]
+
+    resources = ["${aws_cloudwatch_log_group.findings[0].arn}:*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["events.amazonaws.com", "delivery.logs.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_cloudwatch_log_resource_policy" "findings_feed" {
+  count = var.enable_findings_feed ? 1 : 0
+
+  policy_name     = "${var.organization_name}-${var.environment}-findings-feed"
+  policy_document = data.aws_iam_policy_document.findings_feed[0].json
+}
+
+locals {
+  findings_sources = {
+    guardduty   = { source = "aws.guardduty", detail_type = "GuardDuty Finding" }
+    securityhub = { source = "aws.securityhub", detail_type = "Security Hub Findings - Imported" }
+    config      = { source = "aws.config", detail_type = "Config Rules Compliance Change" }
+  }
+}
+
+resource "aws_cloudwatch_event_rule" "findings" {
+  for_each = var.enable_findings_feed ? local.findings_sources : {}
+
+  name        = "${var.organization_name}-${var.environment}-feed-${each.key}"
+  description = "Copy ${each.key} events to the findings log group for the dashboard."
+
+  event_pattern = jsonencode({
+    source      = [each.value.source]
+    detail-type = [each.value.detail_type]
+  })
+}
+
+resource "aws_cloudwatch_event_target" "findings" {
+  for_each = aws_cloudwatch_event_rule.findings
+
+  rule      = each.value.name
+  target_id = "ToLogs"
+  arn       = aws_cloudwatch_log_group.findings[0].arn
+
+  depends_on = [aws_cloudwatch_log_resource_policy.findings_feed]
+}
+
 # ---- CloudWatch Dashboard ------------------------------------
+# The first three dashboards in an account are free (up to 50 metrics each).
+locals {
+  security_metric_widgets = var.cloudtrail_log_group == "" ? [] : [
+    {
+      type   = "metric"
+      x      = 0
+      y      = 2
+      width  = 12
+      height = 6
+      properties = {
+        region = var.aws_region
+        title  = "Security events (CloudTrail metric filters)"
+        period = 300
+        stat   = "Sum"
+        view   = "timeSeries"
+        metrics = [
+          for k in ["unauthorized-api-calls", "root-login", "iam-policy-changes", "security-group-changes", "console-signin-without-mfa"] :
+          ["LandingZone/SecurityEvents", "${var.organization_name}-${var.environment}-${k}"]
+        ]
+      }
+    }
+  ]
+
+  findings_widgets = var.enable_findings_feed ? [
+    {
+      type   = "log"
+      x      = 12
+      y      = 2
+      width  = 12
+      height = 6
+      properties = {
+        region = var.aws_region
+        title  = "Security findings by source (last 7 days)"
+        view   = "bar"
+        query  = "SOURCE '${aws_cloudwatch_log_group.findings[0].name}' | stats count(*) as findings by source"
+      }
+    },
+    {
+      type   = "log"
+      x      = 0
+      y      = 8
+      width  = 12
+      height = 6
+      properties = {
+        region = var.aws_region
+        title  = "Config compliance changes (latest)"
+        view   = "table"
+        query  = "SOURCE '${aws_cloudwatch_log_group.findings[0].name}' | filter source = 'aws.config' | fields @timestamp, detail.configRuleName, detail.newEvaluationResult.complianceType | sort @timestamp desc | limit 20"
+      }
+    }
+  ] : []
+}
+
 resource "aws_cloudwatch_dashboard" "main" {
   dashboard_name = "${var.organization_name}-${var.environment}-landing-zone"
 
   dashboard_body = jsonencode({
-    widgets = [
-      {
-        type   = "text"
-        x      = 0
-        y      = 0
-        width  = 24
-        height = 2
-        properties = {
-          region   = var.aws_region
-          markdown = "# AWS Enterprise Landing Zone — ${upper(var.environment)} Security Dashboard\n> Centralised security posture for **${var.organization_name}**"
+    widgets = concat(
+      [
+        {
+          type   = "text"
+          x      = 0
+          y      = 0
+          width  = 24
+          height = 2
+          properties = {
+            markdown = "# AWS Enterprise Landing Zone - ${upper(var.environment)}\nSecurity findings, backup status, Config compliance, GuardDuty and cost in one place."
+          }
         }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 2
-        width  = 8
-        height = 6
-        properties = {
-          region  = var.aws_region
-          title   = "Unauthorised API Calls"
-          period  = 300
-          stat    = "Sum"
-          view    = "timeSeries"
-          metrics = [["LandingZone/SecurityEvents", "${var.organization_name}-${var.environment}-unauthorized-api-calls"]]
+      ],
+      local.security_metric_widgets,
+      local.findings_widgets,
+      [
+        {
+          type   = "metric"
+          x      = 12
+          y      = 8
+          width  = 6
+          height = 6
+          properties = {
+            region  = var.aws_region
+            title   = "Backup jobs (failed vs completed)"
+            period  = 86400
+            stat    = "Sum"
+            view    = "timeSeries"
+            metrics = [["AWS/Backup", "NumberOfBackupJobsFailed"], ["AWS/Backup", "NumberOfBackupJobsCompleted"]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 18
+          y      = 8
+          width  = 6
+          height = 6
+          properties = {
+            # Billing metrics exist only in us-east-1.
+            region  = "us-east-1"
+            title   = "Estimated month-to-date charges (USD)"
+            period  = 21600
+            stat    = "Maximum"
+            view    = "timeSeries"
+            metrics = [["AWS/Billing", "EstimatedCharges", "Currency", "USD"]]
+          }
         }
-      },
-      {
-        type   = "metric"
-        x      = 8
-        y      = 2
-        width  = 8
-        height = 6
-        properties = {
-          region  = var.aws_region
-          title   = "Root Account Logins"
-          period  = 300
-          stat    = "Sum"
-          view    = "timeSeries"
-          metrics = [["LandingZone/SecurityEvents", "${var.organization_name}-${var.environment}-root-login"]]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 16
-        y      = 2
-        width  = 8
-        height = 6
-        properties = {
-          region  = var.aws_region
-          title   = "IAM Policy Changes"
-          period  = 300
-          stat    = "Sum"
-          view    = "timeSeries"
-          metrics = [["LandingZone/SecurityEvents", "${var.organization_name}-${var.environment}-iam-policy-changes"]]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 8
-        width  = 12
-        height = 6
-        properties = {
-          region  = var.aws_region
-          title   = "Security Group Changes"
-          period  = 300
-          stat    = "Sum"
-          view    = "timeSeries"
-          metrics = [["LandingZone/SecurityEvents", "${var.organization_name}-${var.environment}-security-group-changes"]]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 12
-        y      = 8
-        width  = 12
-        height = 6
-        properties = {
-          region  = var.aws_region
-          title   = "Console Logins Without MFA"
-          period  = 300
-          stat    = "Sum"
-          view    = "timeSeries"
-          metrics = [["LandingZone/SecurityEvents", "${var.organization_name}-${var.environment}-console-signin-without-mfa"]]
-        }
-      }
-    ]
+      ]
+    )
   })
 }
 

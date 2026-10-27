@@ -52,3 +52,28 @@ output "security_group_id" {
   description = "ID of the custom VPC security group"
   value       = aws_security_group.main.id
 }
+
+output "vpc_cidr" {
+  description = "VPC CIDR block (same value as vpc_cidr_block)."
+  value       = module.vpc.vpc_cidr_block
+}
+
+output "private_route_table_ids" {
+  description = "Private route table IDs."
+  value       = module.vpc.private_route_table_ids
+}
+
+output "public_route_table_ids" {
+  description = "Public route table IDs."
+  value       = module.vpc.public_route_table_ids
+}
+
+output "gateway_endpoint_ids" {
+  description = "Gateway endpoint IDs by service (for example s3)."
+  value       = { for k, v in aws_vpc_endpoint.gateway : k => v.id }
+}
+
+output "interface_endpoint_ids" {
+  description = "Interface endpoint IDs by service."
+  value       = { for k, v in aws_vpc_endpoint.interface : k => v.id }
+}

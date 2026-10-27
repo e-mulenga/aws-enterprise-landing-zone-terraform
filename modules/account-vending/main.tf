@@ -2,6 +2,24 @@
 # Module: account-vending — AWS Organisations Account Factory
 # ============================================================
 
+resource "aws_organizations_account" "logging" {
+  name                       = "${var.environment}-logging"
+  email                      = var.logging_account_email
+  iam_user_access_to_billing = "DENY"
+  parent_id                  = var.security_ou_id
+  role_name                  = "OrganizationAccountAccessRole"
+
+  tags = {
+    AccountType = "logging"
+    Environment = var.environment
+  }
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = [email, name]
+  }
+}
+
 resource "aws_organizations_account" "security" {
   name                       = "${var.environment}-security"
   email                      = var.security_account_email
@@ -16,24 +34,6 @@ resource "aws_organizations_account" "security" {
 
   lifecycle {
     # Accounts cannot be deleted via Terraform — prevent accidental destroy
-    prevent_destroy = true
-    ignore_changes  = [email, name]
-  }
-}
-
-resource "aws_organizations_account" "logging" {
-  name                       = "${var.environment}-logging"
-  email                      = var.logging_account_email
-  iam_user_access_to_billing = "DENY"
-  parent_id                  = var.infrastructure_ou_id
-  role_name                  = "OrganizationAccountAccessRole"
-
-  tags = {
-    AccountType = "logging"
-    Environment = var.environment
-  }
-
-  lifecycle {
     prevent_destroy = true
     ignore_changes  = [email, name]
   }
@@ -58,14 +58,14 @@ resource "aws_organizations_account" "shared_services" {
 }
 
 resource "aws_organizations_account" "development" {
-  name                       = "workload-development"
+  name                       = "development"
   email                      = var.development_account_email
   iam_user_access_to_billing = "DENY"
-  parent_id                  = var.workloads_dev_ou_id
+  parent_id                  = var.development_ou_id
   role_name                  = "OrganizationAccountAccessRole"
 
   tags = {
-    AccountType = "workload"
+    AccountType = "development"
     Environment = "dev"
   }
 
@@ -76,14 +76,14 @@ resource "aws_organizations_account" "development" {
 }
 
 resource "aws_organizations_account" "production" {
-  name                       = "workload-production"
+  name                       = "production"
   email                      = var.production_account_email
   iam_user_access_to_billing = "DENY"
-  parent_id                  = var.workloads_prod_ou_id
+  parent_id                  = var.production_ou_id
   role_name                  = "OrganizationAccountAccessRole"
 
   tags = {
-    AccountType = "workload"
+    AccountType = "production"
     Environment = "prod"
   }
 

@@ -1,9 +1,6 @@
 # ============================================================
-# Module: config — AWS Config (Organisation-wide)
+# Module: config - AWS Config (Organisation-wide)
 # ============================================================
-
-data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
 
 resource "aws_iam_role" "config" {
   name = "${var.organization_name}-${var.environment}-config-role"
@@ -11,9 +8,11 @@ resource "aws_iam_role" "config" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "config.amazonaws.com" }
-      Action    = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "config.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
     }]
   })
 }
@@ -29,20 +28,30 @@ resource "aws_iam_role_policy" "config_s3" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Action    = ["s3:PutObject"]
-      Resource  = "arn:aws:s3:::${var.s3_bucket_name}/AWSLogs/${data.aws_caller_identity.current.account_id}/Config/*"
-      Condition = { StringEquals = { "s3:x-amz-acl" = "bucket-owner-full-control" } }
-      }, {
-      Effect   = "Allow"
-      Action   = ["s3:GetBucketAcl"]
-      Resource = "arn:aws:s3:::${var.s3_bucket_name}"
-      }, {
-      Effect   = "Allow"
-      Action   = ["kms:Decrypt", "kms:GenerateDataKey"]
-      Resource = var.kms_key_arn
-    }]
+    Statement = concat(
+      [
+        {
+          Effect    = "Allow"
+          Action    = ["s3:PutObject"]
+          Resource  = "arn:aws:s3:::${var.s3_bucket_name}/AWSLogs/${data.aws_caller_identity.current.account_id}/Config/*"
+          Condition = { StringEquals = { "s3:x-amz-acl" = "bucket-owner-full-control" } }
+        },
+        {
+          Effect   = "Allow"
+          Action   = ["s3:GetBucketAcl"]
+          Resource = "arn:aws:s3:::${var.s3_bucket_name}"
+        }
+      ],
+      # Only with a customer managed key. With AWS managed encryption (dev)
+      # there is no key to grant access to.
+      var.kms_key_arn == null ? [] : [
+        {
+          Effect   = "Allow"
+          Action   = ["kms:Decrypt", "kms:GenerateDataKey"]
+          Resource = var.kms_key_arn
+        }
+      ]
+    )
   })
 }
 
@@ -56,7 +65,10 @@ resource "aws_config_configuration_recorder" "main" {
   }
 
   recording_mode {
-    recording_frequency = "CONTINUOUS"
+    # Continuous = USD 0.003 per item, recorded only when a resource changes.
+    # Daily = USD 0.012 per item, one item per resource per day. For a quiet
+    # personal account CONTINUOUS is the cheaper option.
+    recording_frequency = var.recording_frequency
   }
 }
 
@@ -68,13 +80,17 @@ resource "aws_config_delivery_channel" "main" {
     delivery_frequency = "TwentyFour_Hours"
   }
 
-  depends_on = [aws_config_configuration_recorder.main]
+  depends_on = [
+    aws_config_configuration_recorder.main
+  ]
 }
 
 resource "aws_config_configuration_recorder_status" "main" {
   name       = aws_config_configuration_recorder.main.name
   is_enabled = var.enabled
-  depends_on = [aws_config_delivery_channel.main]
+  depends_on = [
+    aws_config_delivery_channel.main
+  ]
 }
 
 # ---- Managed Config Rules -----------------------------------
@@ -103,15 +119,43 @@ locals {
   }
 }
 
+# AWS rule identifiers that do not follow upper(replace(name, "-", "_")).
+locals {
+  rule_identifier_overrides = {
+    "cloudtrail-enabled"                     = "CLOUD_TRAIL_ENABLED"
+    "cloudtrail-encryption-enabled"          = "CLOUD_TRAIL_ENCRYPTION_ENABLED"
+    "cloudtrail-log-file-validation-enabled" = "CLOUD_TRAIL_LOG_FILE_VALIDATION_ENABLED"
+  }
+}
+
+locals {
+  # Cost-aware subset: every rule bills USD 0.001 per evaluation.
+  core_rule_names = [
+    "s3-bucket-public-read-prohibited",
+    "s3-bucket-public-write-prohibited",
+    "s3-bucket-server-side-encryption-enabled",
+    "s3-bucket-ssl-requests-only",
+    "cloudtrail-enabled",
+    "iam-root-access-key-check",
+    "iam-user-mfa-enabled",
+    "restricted-ssh",
+    "encrypted-volumes",
+  ]
+
+  active_rule_names = toset(var.rule_set == "full" ? keys(local.managed_rules) : local.core_rule_names)
+}
+
 resource "aws_config_config_rule" "managed" {
-  for_each = local.managed_rules
+  for_each = local.active_rule_names
 
   name = each.key
 
   source {
     owner             = "AWS"
-    source_identifier = upper(replace(each.key, "-", "_"))
+    source_identifier = lookup(local.rule_identifier_overrides, each.key, upper(replace(each.key, "-", "_")))
   }
 
-  depends_on = [aws_config_configuration_recorder_status.main]
+  depends_on = [
+    aws_config_configuration_recorder_status.main
+  ]
 }

@@ -1,155 +1,52 @@
 # ============================================================
-# Module: kms — Customer-Managed KMS Keys
+# Module: kms - Enterprise key strategy
+# ============================================================
+# dev / test  : use_aws_managed_keys = true  -> NO KMS resources, USD 0.
+#               Workloads use the AWS managed keys (aws/s3, aws/rds, ...).
+# prod        : use_aws_managed_keys = false -> five shared customer managed
+#               keys (rds, s3, backup, analytics, ai), rotation on.
+#
+# Cost of the prod strategy: USD 1 per key per month (5 keys = USD 5/month)
+# plus request charges, which are negligible at portfolio volumes.
 # ============================================================
 
-data "aws_caller_identity" "current" {}
-data "aws_partition" "current" {}
-data "aws_region" "current" {}
+resource "aws_kms_key" "shared" {
+  for_each = local.create_cmk ? local.shared_keys : {}
 
-locals {
-  account_id = data.aws_caller_identity.current.account_id
-  partition  = data.aws_partition.current.partition
-  region     = data.aws_region.current.name
-}
-
-# ---- CloudTrail Key -----------------------------------------
-resource "aws_kms_key" "cloudtrail" {
-  description             = "CMK for CloudTrail log encryption — ${var.organization_name} ${var.environment}"
-  deletion_window_in_days = 30
+  description             = "${each.value} - ${var.organization_name} ${var.environment}"
+  deletion_window_in_days = var.deletion_window_in_days
   enable_key_rotation     = var.key_rotation_enabled
   multi_region            = false
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "EnableRootAccess"
-        Effect    = "Allow"
-        Principal = { AWS = "arn:${local.partition}:iam::${local.account_id}:root" }
-        Action    = "kms:*"
-        Resource  = "*"
-      },
-      {
-        Sid       = "AllowCloudTrailEncrypt"
-        Effect    = "Allow"
-        Principal = { Service = "cloudtrail.amazonaws.com" }
-        Action    = ["kms:GenerateDataKey*", "kms:DescribeKey"]
-        Resource  = "*"
-        Condition = {
-          StringLike = {
-            "kms:EncryptionContext:aws:cloudtrail:arn" = "arn:${local.partition}:cloudtrail:*:${var.management_account_id}:trail/*"
-          }
+    Statement = concat(
+      [
+        {
+          Sid       = "EnableRootAccess"
+          Effect    = "Allow"
+          Principal = { AWS = "arn:${local.partition}:iam::${local.account_id}:root" }
+          Action    = "kms:*"
+          Resource  = "*"
         }
-      },
-      {
-        Sid       = "AllowLoggingAccountDecrypt"
-        Effect    = "Allow"
-        Principal = { AWS = "arn:${local.partition}:iam::${var.logging_account_id}:root" }
-        Action    = ["kms:Decrypt", "kms:DescribeKey"]
-        Resource  = "*"
-      }
-    ]
+      ],
+      local.extra_statements[each.key]
+    )
   })
 
-  tags = { Name = "${var.organization_name}-${var.environment}-cloudtrail-key" }
+  tags = {
+    Name    = "${var.organization_name}-${var.environment}-shared-${each.key}-key"
+    Purpose = "shared-${each.key}"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
-resource "aws_kms_alias" "cloudtrail" {
-  name          = "alias/${var.organization_name}-${var.environment}-cloudtrail"
-  target_key_id = aws_kms_key.cloudtrail.key_id
-}
+resource "aws_kms_alias" "shared" {
+  for_each = aws_kms_key.shared
 
-# ---- Config Key ---------------------------------------------
-resource "aws_kms_key" "config" {
-  description             = "CMK for AWS Config encryption — ${var.organization_name} ${var.environment}"
-  deletion_window_in_days = 30
-  enable_key_rotation     = var.key_rotation_enabled
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "EnableRootAccess"
-        Effect    = "Allow"
-        Principal = { AWS = "arn:${local.partition}:iam::${local.account_id}:root" }
-        Action    = "kms:*"
-        Resource  = "*"
-      },
-      {
-        Sid       = "AllowConfigService"
-        Effect    = "Allow"
-        Principal = { Service = "config.amazonaws.com" }
-        Action    = ["kms:Decrypt", "kms:GenerateDataKey"]
-        Resource  = "*"
-      }
-    ]
-  })
-
-  tags = { Name = "${var.organization_name}-${var.environment}-config-key" }
-}
-
-resource "aws_kms_alias" "config" {
-  name          = "alias/${var.organization_name}-${var.environment}-config"
-  target_key_id = aws_kms_key.config.key_id
-}
-
-# ---- GuardDuty Key ------------------------------------------
-resource "aws_kms_key" "guardduty" {
-  description             = "CMK for GuardDuty findings encryption — ${var.organization_name} ${var.environment}"
-  deletion_window_in_days = 30
-  enable_key_rotation     = var.key_rotation_enabled
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "EnableRootAccess"
-        Effect    = "Allow"
-        Principal = { AWS = "arn:${local.partition}:iam::${local.account_id}:root" }
-        Action    = "kms:*"
-        Resource  = "*"
-      },
-      {
-        Sid       = "AllowGuardDutyService"
-        Effect    = "Allow"
-        Principal = { Service = "guardduty.amazonaws.com" }
-        Action    = ["kms:GenerateDataKey"]
-        Resource  = "*"
-      }
-    ]
-  })
-
-  tags = { Name = "${var.organization_name}-${var.environment}-guardduty-key" }
-}
-
-resource "aws_kms_alias" "guardduty" {
-  name          = "alias/${var.organization_name}-${var.environment}-guardduty"
-  target_key_id = aws_kms_key.guardduty.key_id
-}
-
-# ---- Backup Key ---------------------------------------------
-resource "aws_kms_key" "backup" {
-  description             = "CMK for AWS Backup encryption — ${var.organization_name} ${var.environment}"
-  deletion_window_in_days = 30
-  enable_key_rotation     = var.key_rotation_enabled
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "EnableRootAccess"
-        Effect    = "Allow"
-        Principal = { AWS = "arn:${local.partition}:iam::${local.account_id}:root" }
-        Action    = "kms:*"
-        Resource  = "*"
-      }
-    ]
-  })
-
-  tags = { Name = "${var.organization_name}-${var.environment}-backup-key" }
-}
-
-resource "aws_kms_alias" "backup" {
-  name          = "alias/${var.organization_name}-${var.environment}-backup"
-  target_key_id = aws_kms_key.backup.key_id
+  name          = "alias/${var.organization_name}-${var.environment}-shared-${each.key}"
+  target_key_id = each.value.key_id
 }

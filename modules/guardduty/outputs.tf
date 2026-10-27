@@ -1,5 +1,6 @@
 output "detector_id" {
-  value = aws_guardduty_detector.main.id
+  description = "GuardDuty detector ID (created or existing)."
+  value       = local.detector_id
 }
 
 output "alerts_topic_arn" {

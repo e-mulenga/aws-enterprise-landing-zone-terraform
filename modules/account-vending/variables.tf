@@ -36,12 +36,12 @@ variable "infrastructure_ou_id" {
   default = ""
 }
 
-variable "workloads_dev_ou_id" {
+variable "development_ou_id" {
   type    = string
   default = ""
 }
 
-variable "workloads_prod_ou_id" {
+variable "production_ou_id" {
   type    = string
   default = ""
 }

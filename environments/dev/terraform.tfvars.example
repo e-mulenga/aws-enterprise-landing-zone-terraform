@@ -25,6 +25,9 @@ shared_services_account_id = ""
 owner       = "Platform Engineering"
 cost_center = "LAB001"
 
+# ---- Cost posture: LOWEST COST. Anything that bills stays off. --------------
+use_aws_managed_keys = true # free; customer-managed keys cost $1/month each
+
 # Region controls
 allowed_regions = ["af-south-1","eu-west-1"]
 
@@ -66,6 +69,12 @@ intra_subnet_cidrs = [
 ]
 }
 
+# Networking: NAT gateways (~$35/month each) are OFF. The S3 gateway endpoint is free.
+enable_nat_gateway_primary = false
+enable_nat_gateway_dr      = false
+gateway_endpoints          = ["s3"]
+interface_endpoints        = [] # ~$7-8 per endpoint per AZ per month
+
 # Identity
 identity_center_admin_group = "CloudAdmins"
 
@@ -90,3 +99,8 @@ backup_retention_days = 14
 # Budget alerting
 monthly_budget_usd  = 100
 budget_alert_email  = "cloudteam@example.com"
+
+# ---- Optional ---------------------------------------------------------------
+route53_domain_name = "yourdomain.com" # existing hosted zone; ACM certs are free
+github_oidc_mode    = "create"       # "create" if the provider does not exist yet
+alert_email         = "alertemailaddress@yourdomain.com"

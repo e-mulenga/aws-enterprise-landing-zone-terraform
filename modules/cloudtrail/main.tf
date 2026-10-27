@@ -1,5 +1,5 @@
 # ============================================================
-# Module: cloudtrail — Organisation CloudTrail Trail
+# Module: cloudtrail - Organisation CloudTrail Trail
 # ============================================================
 
 resource "aws_cloudwatch_log_group" "cloudtrail" {
@@ -54,24 +54,35 @@ resource "aws_cloudtrail" "org_trail" {
     read_write_type           = "All"
     include_management_events = true
 
-    data_resource {
-      type   = "AWS::S3::Object"
-      values = ["arn:aws:s3:::"]
+    # Data events are billed per event (USD 0.10 per 100,000). Off by default;
+    # turn on in prod, or scope to specific buckets for a demo.
+    dynamic "data_resource" {
+      for_each = var.data_events_enabled ? {
+        "AWS::S3::Object"       = "arn:aws:s3:::"
+        "AWS::Lambda::Function" = "arn:aws:lambda"
+      } : {}
+
+      content {
+        type   = data_resource.key
+        values = [data_resource.value]
+      }
     }
+  }
 
-    data_resource {
-      type   = "AWS::Lambda::Function"
-      values = ["arn:aws:lambda"]
+  # CloudTrail Insights is billed per event analysed. Off by default.
+  dynamic "insight_selector" {
+    for_each = var.insights_enabled ? ["ApiCallRateInsight", "ApiErrorRateInsight"] : []
+
+    content {
+      insight_type = insight_selector.value
     }
   }
 
-  insight_selector {
-    insight_type = "ApiCallRateInsight"
+  tags = {
+    Name = "${var.organization_name}-${var.environment}-org-trail"
   }
 
-  insight_selector {
-    insight_type = "ApiErrorRateInsight"
+  lifecycle {
+    prevent_destroy = true
   }
-
-  tags = { Name = "${var.organization_name}-${var.environment}-org-trail" }
 }
