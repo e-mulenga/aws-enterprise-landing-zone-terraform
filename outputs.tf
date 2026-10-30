@@ -176,11 +176,6 @@ output "availability_zones" {
   value       = module.networking_af_south_1.azs
 }
 
-# output "vpc_flow_logs" {
-#   description = "VPC Flow Logs owned by this Landing Zone, by Region. Consumers read log_group_name/arn or s3_bucket_name/s3_key_prefix here and must never create a second flow log against these VPCs — the EC2 API also rejects a duplicate outright."
-#   value       = module.vpc_flow_logs_outputs
-# }
-
 output "flow_log_group_names" {
   value = {
     af_south_1 = try(module.vpc_flow_logs_af_south_1[0].log_group_name, null)
