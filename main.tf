@@ -260,6 +260,50 @@ check "regional_vpc_cidrs_are_different" {
   }
 }
 
+# ---- VPC Flow Logs: owned here. Other repos consume the outputs below,  --
+# ---- they never create a second flow log against these VPCs. -----------
+module "vpc_flow_logs_af_south_1" {
+  count  = var.enable_vpc_flow_logs_primary ? 1 : 0
+  source = "./modules/vpc-flow-logs"
+
+  providers = {
+    aws = aws.af_south_1
+  }
+
+  organization_name       = var.organization_name
+  environment             = var.environment
+  region_name             = "af-south-1"
+  vpc_id                  = module.networking_af_south_1.vpc_id
+  destination             = var.vpc_flow_logs_destination
+  traffic_type            = var.vpc_flow_logs_traffic_type
+  log_retention_days      = var.vpc_flow_logs_retention_days
+  access_logs_bucket_name = module.logging.access_logs_bucket_name
+  access_logs_bucket_arn  = module.logging.access_logs_bucket_arn
+  s3_key_prefix           = "vpc-flow-logs/af-south-1/"
+  kms_key_arn             = try(module.kms.shared_kms_keys["s3"].arn, null)
+}
+
+module "vpc_flow_logs_eu_west_1" {
+  count  = var.enable_vpc_flow_logs_dr ? 1 : 0
+  source = "./modules/vpc-flow-logs"
+
+  providers = {
+    aws = aws.eu_west_1
+  }
+
+  organization_name       = var.organization_name
+  environment             = var.environment
+  region_name             = "eu-west-1"
+  vpc_id                  = module.networking_eu_west_1.vpc_id
+  destination             = var.vpc_flow_logs_destination
+  traffic_type            = var.vpc_flow_logs_traffic_type
+  log_retention_days      = var.vpc_flow_logs_retention_days
+  access_logs_bucket_name = module.logging.access_logs_bucket_name
+  access_logs_bucket_arn  = module.logging.access_logs_bucket_arn
+  s3_key_prefix           = "vpc-flow-logs/eu-west-1/"
+  kms_key_arn             = try(module.kms.shared_kms_keys["s3"].arn, null)
+}
+
 # ---- 14. Route 53 foundation (existing hosted zone) + ACM -----------------
 module "dns" {
   source = "./modules/dns"

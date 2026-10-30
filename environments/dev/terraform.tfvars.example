@@ -5,7 +5,7 @@
 # Then populate with real values. NEVER commit terraform.tfvars.
 # ============================================================
 
-organization_name = "example-org"
+organization_name = "acme-enterprise"
 aws_region        = "af-south-1"
 environment       = "dev"
 
@@ -104,3 +104,12 @@ budget_alert_email  = "cloudteam@example.com"
 route53_domain_name = "yourdomain.com" # existing hosted zone; ACM certs are free
 github_oidc_mode    = "create"       # "create" if the provider does not exist yet
 alert_email         = "alertemailaddress@yourdomain.com"
+
+# ---- VPC Flow Logs: owned by this repo, consumed by other repos via -------
+# ---- the vpc_flow_logs root output. Off by default — nothing runs on ------
+# ---- this VPC yet, so there is no traffic worth paying to log. ------------
+enable_vpc_flow_logs_primary = false
+enable_vpc_flow_logs_dr      = false
+vpc_flow_logs_destination    = "s3"      # cheapest option once enabled (no per-GB ingestion charge)
+vpc_flow_logs_traffic_type   = "REJECT"  # denied-traffic only keeps volume (and cost) low
+vpc_flow_logs_retention_days = 14        # only used if destination includes cloudwatch

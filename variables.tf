@@ -309,6 +309,83 @@ variable "eu_west_1" {
   })
 }
 
+variable "enable_nat_gateway_primary" {
+  type        = bool
+  description = "NAT Gateway in the primary Region. About USD 35+/month each; keep false in dev/test."
+  default     = false
+}
+
+variable "enable_nat_gateway_dr" {
+  type        = bool
+  description = "NAT Gateway in the DR Region. Keep false."
+  default     = false
+}
+
+variable "single_nat_gateway" {
+  description = "true = one NAT per region (cheaper). false = one NAT per AZ (resilient)."
+  type        = bool
+  default     = true
+}
+
+variable "allow_public_web_ingress" {
+  type        = bool
+  description = "Open 80/443 to the internet on each default security group. Keep false."
+  default     = false
+}
+
+variable "gateway_endpoints" {
+  type        = list(string)
+  description = "Free gateway endpoints created in both VPCs."
+  default     = ["s3"]
+}
+
+variable "interface_endpoints" {
+  type        = list(string)
+  description = "Optional interface endpoints (billed hourly per AZ). See docs/cost-analysis.md."
+  default     = []
+}
+
+# ---- VPC Flow Logs (owned here; other repos consume, never recreate) ----
+variable "enable_vpc_flow_logs_primary" {
+  type        = bool
+  description = "Flow logs on the af-south-1 VPC. Keep false until there is traffic worth analysing, to avoid paying for flow logs on an idle dev VPC."
+  default     = false
+}
+
+variable "enable_vpc_flow_logs_dr" {
+  type        = bool
+  description = "Flow logs on the eu-west-1 VPC. Keep false — nothing runs there day to day."
+  default     = false
+}
+
+variable "vpc_flow_logs_destination" {
+  type        = string
+  description = "cloudwatch, s3, or both. s3 is lowest cost (no per-GB ingestion charge) and is enough for Athena-based investigation; cloudwatch adds real-time metric-filter/alarm capability at a materially higher per-GB cost. See docs/vpc-flow-logs-cost-analysis.md."
+  default     = "s3"
+
+  validation {
+    condition     = contains(["cloudwatch", "s3", "both"], var.vpc_flow_logs_destination)
+    error_message = "vpc_flow_logs_destination must be one of: cloudwatch, s3, both."
+  }
+}
+
+variable "vpc_flow_logs_traffic_type" {
+  type        = string
+  description = "ALL, ACCEPT, or REJECT. REJECT-only cuts volume/cost substantially and still catches most security-relevant signal (denied connections); use ALL when full network troubleshooting is needed."
+  default     = "ALL"
+
+  validation {
+    condition     = contains(["ALL", "ACCEPT", "REJECT"], var.vpc_flow_logs_traffic_type)
+    error_message = "vpc_flow_logs_traffic_type must be one of: ALL, ACCEPT, REJECT."
+  }
+}
+
+variable "vpc_flow_logs_retention_days" {
+  type        = number
+  description = "CloudWatch Log group retention (only relevant when the destination includes cloudwatch)."
+  default     = 30
+}
+
 # ---- Budget Alerting ----------------------------------------
 
 variable "budget_alert_email" {
@@ -355,7 +432,7 @@ variable "github_oidc_mode" {
   default     = "disabled"
 
   validation {
-    condition     = contains(["disabled", "lookup", "create"], var.github_oidc_mode)
+    condition     = contains(["disabled", "lookup", "create", "existing"], var.github_oidc_mode)
     error_message = "github_oidc_mode must be disabled, lookup or create."
   }
 }

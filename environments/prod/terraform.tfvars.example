@@ -44,3 +44,11 @@ backup_retention_days = 35      # 5-week rolling retention
 
 monthly_budget_usd = 5000
 budget_alert_email = "cloud-billing@company.com"
+
+# ---- VPC Flow Logs: owned by this repo, consumed by other repos via -------
+# ---- the vpc_flow_logs root output — they must never create their own. ----
+enable_vpc_flow_logs_primary = true
+enable_vpc_flow_logs_dr      = false     # enable only during an active DR failover
+vpc_flow_logs_destination    = "both"    # cloudwatch for real-time alarms + s3 for cheap long-term/Athena
+vpc_flow_logs_traffic_type   = "ALL"     # full visibility — prod compliance posture
+vpc_flow_logs_retention_days = 90

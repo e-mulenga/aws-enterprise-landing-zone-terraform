@@ -37,3 +37,11 @@ backup_retention_days = 21
 
 monthly_budget_usd = 250
 budget_alert_email = "cloudteam@example.com"
+
+# ---- VPC Flow Logs: owned by this repo, consumed by other repos via -------
+# ---- the vpc_flow_logs root output — they must never create their own. ----
+enable_vpc_flow_logs_primary = true
+enable_vpc_flow_logs_dr      = false     # DR VPC is idle — nothing to log there
+vpc_flow_logs_destination    = "s3"      # s3-only: cheapest, still queryable via Athena
+vpc_flow_logs_traffic_type   = "REJECT"  # denied-traffic only — see docs/vpc-flow-logs-cost-analysis.md
+vpc_flow_logs_retention_days = 30

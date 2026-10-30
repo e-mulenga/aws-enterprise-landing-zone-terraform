@@ -100,7 +100,7 @@ output "backup_dr_vault_arn" {
   value       = try(module.backup[0].dr_vault_arn, null)
 }
 
-# ------- Networking / Security Group / NAT Outputs ---------------
+# ------- Networking / Security Group / NAT / VPC Flow Logs Outputs ---------------
 output "af_south_1" {
   description = "Primary Region (af-south-1) networking."
   value = {
@@ -176,40 +176,36 @@ output "availability_zones" {
   value       = module.networking_af_south_1.azs
 }
 
-variable "enable_nat_gateway_primary" {
-  type        = bool
-  description = "NAT Gateway in the primary Region. About USD 35+/month each; keep false in dev/test."
-  default     = false
+# output "vpc_flow_logs" {
+#   description = "VPC Flow Logs owned by this Landing Zone, by Region. Consumers read log_group_name/arn or s3_bucket_name/s3_key_prefix here and must never create a second flow log against these VPCs — the EC2 API also rejects a duplicate outright."
+#   value       = module.vpc_flow_logs_outputs
+# }
+
+output "flow_log_group_names" {
+  value = {
+    af_south_1 = try(module.vpc_flow_logs_af_south_1[0].log_group_name, null)
+    eu_west_1  = try(module.vpc_flow_logs_eu_west_1[0].log_group_name, null)
+  }
 }
 
-variable "enable_nat_gateway_dr" {
-  type        = bool
-  description = "NAT Gateway in the DR Region. Keep false."
-  default     = false
-}
+output "vpc_flow_logs" {
+  description = "Landing Zone VPC Flow Log configuration"
 
-variable "single_nat_gateway" {
-  description = "true = one NAT per region (cheaper). false = one NAT per AZ (resilient)."
-  type        = bool
-  default     = true
-}
+  value = {
+    af_south_1 = {
+      flow_log_ids  = try(module.vpc_flow_logs_af_south_1[0].flow_log_ids, [])
+      log_group     = try(module.vpc_flow_logs_af_south_1[0].log_group_name, null)
+      destination   = try(module.vpc_flow_logs_af_south_1[0].destination, null)
+      bucket_prefix = try(module.vpc_flow_logs_af_south_1[0].s3_key_prefix, null)
+    }
 
-variable "allow_public_web_ingress" {
-  type        = bool
-  description = "Open 80/443 to the internet on each default security group. Keep false."
-  default     = false
-}
-
-variable "gateway_endpoints" {
-  type        = list(string)
-  description = "Free gateway endpoints created in both VPCs."
-  default     = ["s3"]
-}
-
-variable "interface_endpoints" {
-  type        = list(string)
-  description = "Optional interface endpoints (billed hourly per AZ). See docs/cost-analysis.md."
-  default     = []
+    eu_west_1 = {
+      flow_log_ids  = try(module.vpc_flow_logs_eu_west_1[0].flow_log_ids, [])
+      log_group     = try(module.vpc_flow_logs_eu_west_1[0].log_group_name, null)
+      destination   = try(module.vpc_flow_logs_eu_west_1[0].destination, null)
+      bucket_prefix = try(module.vpc_flow_logs_eu_west_1[0].s3_key_prefix, null)
+    }
+  }
 }
 
 # ---------- KMS / Encryption -----------
