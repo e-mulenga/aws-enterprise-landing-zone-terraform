@@ -403,6 +403,7 @@ aws-enterprise-landing-zone-terraform/
 │   ├── github-oidc/               # GitHub Actions federation via OpenID Connect and short-lived deployment credentials
 │   ├── ecr/                       # Shared enterprise container registry platform, lifecycle policies and image governance
 │   ├── networking/                # Multi-region networking foundation (VPCs, subnets, routing, DNS integration and endpoints)
+│   ├── vpc-flow-logs/             # Centralized VPC Flow Logs for network observability, security monitoring, compliance auditing and operational troubleshooting
 │   ├── logging/                   # Centralized logging bucket integration for CloudTrail, AWS Config, GuardDuty and access logs
 │   ├── cloudtrail/                # Organizational audit trail, CloudWatch integration and API activity visibility
 │   ├── config/                    # Configuration compliance, resource inventory, compliance recording and governance controls
