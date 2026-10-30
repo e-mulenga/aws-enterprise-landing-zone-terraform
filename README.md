@@ -1053,6 +1053,12 @@ Produces (outputs consumed downstream):
 
 ---
 
+## Landing Zone Outputs
+
+The outputs of this Landing Zone are the authoritative source of shared infrastructure for all AWS repositories deployed within this organisation. Downstream repositories consume these outputs through Terraform remote state and do not recreate shared resources, including networking, centralised log buckets, encryption keys, organisation metadata and VPC Flow Logs. This keeps ownership of foundational resources in one place and ensures consistent governance across all deployments.
+
+---
+
 ## Author
 
 **Emmanuel Mulenga** — Multi-Cloud Engineer
