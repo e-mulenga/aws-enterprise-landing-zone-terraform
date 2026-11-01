@@ -203,6 +203,51 @@ output "vpc_flow_logs" {
   }
 }
 
+# ---------- Interface VPC Endpoints (PrivateLink) --------------
+# Primary Region (af-south-1). Null / empty when
+# enable_interface_endpoints_primary = false. Downstream repositories reference
+# the security group in their egress rules instead of 0.0.0.0/0, and never
+# create a second endpoint for the same service in this VPC.
+output "interface_endpoint_security_group_id" {
+  description = "Shared security group attached to every Interface endpoint in the primary VPC (af-south-1). null when interface endpoints are not deployed."
+  value       = try(module.vpc_endpoints_af_south_1[0].security_group_id, null)
+}
+
+output "interface_endpoints" {
+  description = "Interface endpoint IDs in the primary VPC (af-south-1), keyed sqs, sns, secretsmanager, logs, eventbridge, kms, monitoring, xray, ecr_api, ecr_dkr, sts. Only deployed services appear; {} when not deployed."
+  value       = try(module.vpc_endpoints_af_south_1[0].endpoint_ids, {})
+}
+
+output "interface_endpoints_dr_fallback_services" {
+  description = "Services that af-south-1 does not offer as Interface endpoints and that are served from the eu-west-1 DR VPC instead (see interface_endpoints_fallback_to_dr). Their IDs are under vpc_interface_endpoints.eu_west_1. [] when none."
+  value       = local.interface_endpoints_dr_fallback
+}
+
+output "vpc_interface_endpoints" {
+  description = "Landing Zone Interface VPC Endpoint (PrivateLink) configuration by Region."
+
+  value = {
+    af_south_1 = {
+      enabled             = length(module.vpc_endpoints_af_south_1) > 0
+      security_group_id   = try(module.vpc_endpoints_af_south_1[0].security_group_id, null)
+      endpoint_ids        = try(module.vpc_endpoints_af_south_1[0].endpoint_ids, {})
+      endpoint_dns_names  = try(module.vpc_endpoints_af_south_1[0].endpoint_dns_names, {})
+      service_names       = try(module.vpc_endpoints_af_south_1[0].service_names, [])
+      private_dns_enabled = try(module.vpc_endpoints_af_south_1[0].private_dns_enabled, null)
+    }
+
+    eu_west_1 = {
+      enabled             = var.enable_interface_endpoints_dr
+      deployed            = local.deploy_vpc_endpoints_dr
+      security_group_id   = try(module.vpc_endpoints_eu_west_1[0].security_group_id, null)
+      endpoint_ids        = try(module.vpc_endpoints_eu_west_1[0].endpoint_ids, {})
+      endpoint_dns_names  = try(module.vpc_endpoints_eu_west_1[0].endpoint_dns_names, {})
+      service_names       = try(module.vpc_endpoints_eu_west_1[0].service_names, [])
+      private_dns_enabled = try(module.vpc_endpoints_eu_west_1[0].private_dns_enabled, null)
+    }
+  }
+}
+
 # ---------- KMS / Encryption -----------
 
 # Customer managed key ARNs; null in dev.

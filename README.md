@@ -108,6 +108,7 @@ Organisations migrating to or growing on AWS frequently encounter:
 - AWS Backup with vault lock and cold storage lifecycle
 - 9 CloudWatch metric filter alarms + security dashboard
 - AWS Budgets with 80% and 100% threshold alerts
+- Interface VPC Endpoints (AWS PrivateLink) for 11 AWS services in af-south-1 and eu-west-1, so workloads reach AWS APIs privately without Internet or NAT dependency
 
 ---
 
@@ -185,6 +186,33 @@ flowchart LR
     ROLE -->|"executes"| TF
     TF -->|"manages"| ACC
 ```
+### Private Service Connectivity (Interface VPC Endpoints / PrivateLink)
+
+Interface endpoints are owned by `modules/vpc-endpoints`, separate from `modules/networking`, in the same way as `modules/vpc-flow-logs`. One shared endpoint security group fronts every endpoint in a Region.
+
+```mermaid
+flowchart LR
+    subgraph VPC["Landing Zone VPC (af-south-1, mirrored in eu-west-1)"]
+        direction TB
+        APP["Workloads in private subnets\n(downstream repositories)"]
+        SG["Shared endpoint security group\nTCP 443 from VPC CIDR only"]
+        subgraph EP["Interface endpoints, one ENI per AZ"]
+            T1["Tier 1\nsqs · sns · secretsmanager\nlogs · events"]
+            T2["Tier 2\nkms · monitoring · xray\necr.api · ecr.dkr · sts"]
+        end
+        S3GW["S3 Gateway Endpoint\n(free, existing)"]
+    end
+
+    PL["AWS PrivateLink\n(AWS network backbone)"]
+    SVC["AWS service APIs"]
+    NAT["NAT Gateway / Internet\n(not required for these services)"]
+
+    APP -->|"HTTPS 443, private DNS resolves\nto endpoint ENI IPs"| SG
+    SG --> T1 & T2
+    T1 & T2 --> PL --> SVC
+    APP --> S3GW
+    APP -. "no longer needed" .-> NAT
+```
 
 ---
 
@@ -230,6 +258,7 @@ flowchart TD
 - KMS CMK ARNs (CloudTrail, Config, GuardDuty, Backup)
 - IAM Identity Center instance ARN and permission set ARNs
 - Centralised S3 log bucket names
+- Interface VPC Endpoint (PrivateLink) security group ID and endpoint IDs, keyed by service
 - GuardDuty detector ID
 - Security Hub configuration
 
@@ -260,6 +289,7 @@ flowchart TD
 | AWS Backup | Cross-account backup with vault lock | Prod |
 | AWS Budgets | Cost alerting at 80% and 100% | Management |
 | AWS IAM | Cross-account deployment roles, Config recorder role | All accounts |
+| AWS PrivateLink (Interface VPC Endpoints) | Private connectivity to SQS, SNS, Secrets Manager, CloudWatch Logs, EventBridge, KMS, CloudWatch, X-Ray, ECR (API and Docker) and STS without Internet or NAT | Shared VPCs (af-south-1, eu-west-1) |
 | DNS | Route53 governance and certificate management | |
 | AI Governance | Responsible AI controls, Bedrock guardrails and model governance | AI/ML Accounts |
 
@@ -386,6 +416,53 @@ flowchart TD
 
 ---
 
+### AWS PrivateLink (Interface VPC Endpoints)
+
+**Why selected:** Interface endpoints give workloads private IP addresses inside the VPC for AWS service APIs. With private DNS enabled, applications keep calling the normal service hostname (for example `sqs.af-south-1.amazonaws.com`) and it resolves to the endpoint inside the VPC, so no code or SDK change is needed. Traffic stays on the AWS network and never needs an Internet Gateway, NAT Gateway or public IP.
+
+**Problem it solves:** The Landing Zone previously offered only the free S3 Gateway Endpoint. Every other AWS API call from a private subnet needed a NAT Gateway (the largest fixed cost in this stack, off by default in dev and DR) and an egress rule open to `0.0.0.0/0`. That widens the exfiltration surface and makes private workloads depend on Internet egress just to read a secret or write a log.
+
+**Alternatives considered:** NAT Gateway with an allow-all egress rule (simple, but Internet-dependent, hourly plus per-GB cost, and no per-service control). Per-repository endpoints (duplicated cost, and private DNS allows only one endpoint per service per VPC, so repositories would collide). Central endpoints in a shared-services VPC reached over Transit Gateway (valid at scale, but adds Transit Gateway data charges and a hub dependency that is not justified for two VPCs). Gateway endpoints cover S3 and DynamoDB only.
+
+**Design decisions:**
+- A dedicated `modules/vpc-endpoints` module, deliberately separate from `modules/networking`.
+- One shared security group per Region: inbound TCP 443 from the VPC CIDR only, no egress rules.
+- Endpoint network interfaces are placed in the private subnets, one per Availability Zone (Multi-AZ).
+- Private DNS is always enabled, and the module checks the VPC DNS attributes before creating endpoints.
+- Each service is looked up with `aws_vpc_endpoint_service` first, so a service that is not offered in the Region or in one of the subnet AZs fails at `terraform plan` instead of mid-apply.
+- The endpoint catalogue is a fixed, approved list. Adding a service is a deliberate code change.
+- Optional endpoint policy (`restrict_interface_endpoints_to_organization`) that only allows principals from this AWS Organization (`aws:PrincipalOrgID`). It is not applied to `sts`, because `AssumeRoleWithWebIdentity` (for example EKS IRSA) is unauthenticated and carries no organisation ID.
+- Everything is off by default (`enable_interface_endpoints_primary` and `enable_interface_endpoints_dr` are `false`) because each endpoint is billed per AZ per hour.
+- **DR fallback for services af-south-1 does not offer:** the Landing Zone lists the Interface services actually available in af-south-1 at plan time. Any requested service missing there is created in the eu-west-1 DR VPC instead (`interface_endpoints_fallback_to_dr`, default `true`; needs `enable_interface_endpoints_primary = true`). The af-south-1 VPC CIDR is added to the DR endpoint security group (TCP 443). Private DNS is per VPC, so af-south-1 workloads cannot resolve a DR endpoint by its normal hostname: they need cross-Region connectivity (VPC peering or Transit Gateway, which is why the two VPC CIDRs must not overlap) and must call the endpoint-specific DNS name from `vpc_interface_endpoints.eu_west_1.endpoint_dns_names`. The services affected are published in `interface_endpoints_dr_fallback_services`. Set the variable to `false` to make an unsupported service fail the plan instead.
+
+**Endpoint catalogue (all 11 services):**
+
+| Tier | Service name suffix | Output key | Typical consumers |
+|---|---|---|---|
+| 1 | `sqs` | `sqs` | Event-driven workloads, queues, dead-letter handling |
+| 1 | `sns` | `sns` | Alert fan-out, pub/sub, notifications |
+| 1 | `secretsmanager` | `secretsmanager` | Application and database credentials without Internet egress |
+| 1 | `logs` | `logs` | CloudWatch Logs delivery from Lambda, ECS, EKS and EC2 agents |
+| 1 | `events` | `eventbridge` | EventBridge `PutEvents` from private workloads |
+| 2 | `kms` | `kms` | Encrypt, decrypt and data key calls for the shared CMKs |
+| 2 | `monitoring` | `monitoring` | Custom CloudWatch metrics publishing |
+| 2 | `xray` | `xray` | Distributed tracing segments |
+| 2 | `ecr.api` | `ecr_api` | ECR authentication and image manifests (with `ecr.dkr`) |
+| 2 | `ecr.dkr` | `ecr_dkr` | Container image layer pulls from the shared ECR (with `ecr.api`; layers also need the S3 Gateway Endpoint) |
+| 2 | `sts` | `sts` | Role assumption and OIDC web identity token exchange |
+
+Full service names follow `com.amazonaws.<region>.<suffix>`, for example `com.amazonaws.af-south-1.sqs`. Tier 1 is the recommended first rollout for the portfolio architecture; Tier 2 follows once workloads such as EKS or ECS need it.
+
+**Well-Architected alignment:**
+- Security: private connectivity and least-privilege network flows (SEC05-BP01, SEC05-BP02), TLS to the service enforced, optional organisation-scoped endpoint policy (SEC03-BP02)
+- Reliability: one endpoint network interface per AZ, DR endpoints mirrored in eu-west-1 (REL02, REL10-BP01)
+- Performance Efficiency: shorter, private network path to AWS APIs (PERF04-BP02)
+- Cost Optimization: removes NAT Gateway data processing for these services, and each endpoint is opt-in and trimmable
+- Operational Excellence: defined in Terraform, with plan-time validation (OPS05-BP10)
+- Sustainability: fewer NAT hops and less Internet-bound traffic
+
+---
+
 ## 8. Terraform Structure
 
 ```
@@ -404,6 +481,7 @@ aws-enterprise-landing-zone-terraform/
 │   ├── ecr/                       # Shared enterprise container registry platform, lifecycle policies and image governance
 │   ├── networking/                # Multi-region networking foundation (VPCs, subnets, routing, DNS integration and endpoints)
 │   ├── vpc-flow-logs/             # Centralized VPC Flow Logs for network observability, security monitoring, compliance auditing and operational troubleshooting
+│   ├── vpc-endpoints/             # Interface VPC Endpoints (PrivateLink), shared endpoint security group, endpoint DNS integration and endpoint outputs
 │   ├── logging/                   # Centralized logging bucket integration for CloudTrail, AWS Config, GuardDuty and access logs
 │   ├── cloudtrail/                # Organizational audit trail, CloudWatch integration and API activity visibility
 │   ├── config/                    # Configuration compliance, resource inventory, compliance recording and governance controls
@@ -548,6 +626,16 @@ cp environments/dev/terraform.tfvars.example environments/dev/terraform.tfvars
 # NEVER commit terraform.tfvars
 ```
 
+**Optional: enable Interface VPC Endpoints (PrivateLink).** They are off by default because each endpoint is billed per AZ per hour. Enable them per Region in `terraform.tfvars`:
+
+```hcl
+enable_interface_endpoints_primary           = true   # af-south-1
+enable_interface_endpoints_dr                = false  # eu-west-1: warm standby or DR failover only
+restrict_interface_endpoints_to_organization = true   # aws:PrincipalOrgID endpoint policy (sts excluded)
+interface_endpoints                          = ["sqs", "sns", "secretsmanager", "logs", "events"]  # Tier 1; add Tier 2 when needed
+interface_endpoints_fallback_to_dr           = true   # a service af-south-1 does not offer is created in eu-west-1 instead
+```
+
 ---
 
 ### Step 4 — Two-Phase Apply
@@ -674,6 +762,18 @@ done
 | Log immutability | S3 versioning + deny-delete policy | CIS 3.x |
 | Backup encryption | KMS CMK on backup vault | WAF Security |
 
+### Network Protection (PrivateLink)
+
+| Control | Implementation | Standard |
+|---|---|---|
+| Private access to AWS APIs | Interface VPC Endpoints for 11 services, private DNS enabled | WAF SEC05-BP01, SEC05-BP02 |
+| Least-privilege endpoint access | Shared endpoint security group: TCP 443 from the VPC CIDR only, no egress rules | WAF SEC05-BP02 |
+| Remove 0.0.0.0/0 egress dependency | Downstream repositories reference the endpoint security group ID instead of open egress | WAF SEC05-BP02 |
+| Data perimeter | Optional endpoint policy restricting use to principals in this AWS Organization (`aws:PrincipalOrgID`, `sts` excluded) | WAF SEC03-BP02 |
+| Encryption in transit | TLS 443 to the service; the `DenyUnencryptedTransit` SCP still applies | WAF SEC09-BP02 |
+| Fail-closed deployment | Plan-time check that each service exists in the Region and subnet AZs; VPC DNS attributes verified | WAF OPS05-BP10 |
+| Traffic visibility | VPC Flow Logs capture traffic to endpoint network interfaces; CloudTrail records the API calls | WAF SEC04-BP01 |
+
 ### Audit & Monitoring
 
 | Control | Implementation | Standard |
@@ -735,6 +835,12 @@ GuardDuty Finding (severity ≥ 7) → EventBridge → SNS → PagerDuty (P1)
 Security Hub CRITICAL/HIGH → EventBridge → SNS → Slack #cloud-security
 ```
 
+### PrivateLink Endpoint Visibility
+
+- VPC Flow Logs (when enabled) include traffic to the endpoint network interfaces, so denied connections to an endpoint show up with `REJECT` traffic type.
+- CloudTrail continues to record every API call made through an endpoint, including the calling principal.
+- CloudWatch publishes per-endpoint metrics such as bytes processed and dropped packets in the `AWS/PrivateLinkEndpoints` namespace. Alarms on these metrics are listed under Future Enhancements.
+
 ### AWS Budgets
 
 - **80% forecast alert** — notifies before overspend
@@ -788,6 +894,7 @@ See [`runbooks/disaster-recovery.md`](runbooks/disaster-recovery.md) for step-by
 | CloudWatch | Log ingestion + storage | 90-day log retention in dev |
 | S3 (logs) | Storage + requests | Lifecycle to STANDARD_IA (90d) → GLACIER (365d) |
 | AWS Backup | Storage + restore | Cold storage after 30 days |
+| Interface VPC Endpoints (PrivateLink) | Hourly per endpoint per AZ + per GB processed | Off by default; enable per Region; start with Tier 1; offsets NAT Gateway data processing |
 
 ### Environment-Specific Cost Controls
 
@@ -894,6 +1001,7 @@ aws securityhub get-findings \
 | Go global in minutes | Multi-region trail, S3 CRR for log replication |
 | Use serverless architectures | All security services are managed/serverless |
 | Experiment more often | Dev environment for testing new SCPs before prod |
+| Evaluate available networking features (PERF04-BP02) | PrivateLink gives a shorter private path to AWS APIs than NAT plus Internet |
 
 ### Cost Optimization
 
@@ -924,6 +1032,7 @@ aws securityhub get-findings \
 - Security-by-default design with preventive and detective controls
 - Cross-account role assumption and provider federation patterns
 - Well-Architected Framework applied across all six pillars
+- Private service connectivity design with AWS PrivateLink (Interface VPC Endpoints)
 
 ### Cloud Security
 - Service Control Policies at organisation root
@@ -996,6 +1105,9 @@ aws securityhub get-findings \
 | S3 Intelligent-Tiering for log storage | Low | Small | Cost Optimization |
 | Terraform Sentinel policies | Low | Large | Governance |
 | AWS Compute Optimizer integration | Low | Small | Cost Optimization |
+| CloudWatch alarms on PrivateLink endpoint metrics (dropped packets, connection resets) | Medium | Small | Reliability |
+| Centralised endpoints in a shared-services VPC over Transit Gateway | Low | Large | Cost Optimization |
+| Additional PrivateLink endpoints (ssm, ec2messages, ssmmessages, bedrock-runtime) as workloads need them | Medium | Small | Security |
 
 ---
 
@@ -1056,6 +1168,23 @@ Produces (outputs consumed downstream):
 ## Landing Zone Outputs
 
 The outputs of this Landing Zone are the authoritative source of shared infrastructure for all AWS repositories deployed within this organisation. Downstream repositories consume these outputs through Terraform remote state and do not recreate shared resources, including networking, centralised log buckets, encryption keys, organisation metadata and VPC Flow Logs. This keeps ownership of foundational resources in one place and ensures consistent governance across all deployments.
+
+### Interface VPC Endpoint (PrivateLink) Outputs
+
+| Output | Description |
+|---|---|
+| `interface_endpoint_security_group_id` | Shared security group for all Interface endpoints in the primary VPC (af-south-1). `null` when not deployed. |
+| `interface_endpoints` | Endpoint IDs in the primary VPC, keyed `sqs`, `sns`, `secretsmanager`, `logs`, `eventbridge`, `kms`, `monitoring`, `xray`, `ecr_api`, `ecr_dkr`, `sts`. Only deployed services appear. |
+| `vpc_interface_endpoints` | Per-Region object (`af_south_1`, `eu_west_1`) with `enabled`, `security_group_id`, `endpoint_ids`, `endpoint_dns_names`, `service_names` and `private_dns_enabled`. |
+| `interface_endpoints_dr_fallback_services` | Services af-south-1 does not offer that are served from the eu-west-1 DR VPC instead. `[]` when none. Their IDs and DNS names are under `vpc_interface_endpoints.eu_west_1`. |
+
+Downstream repositories reference the security group instead of opening egress to `0.0.0.0/0`:
+
+```hcl
+data.terraform_remote_state.landing_zone.outputs.interface_endpoint_security_group_id
+```
+
+Because private DNS allows only one endpoint per service per VPC, downstream repositories must consume these endpoints and never create their own. These outputs are additive, so `contract_schema_version` is unchanged.
 
 ---
 

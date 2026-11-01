@@ -341,8 +341,38 @@ variable "gateway_endpoints" {
 
 variable "interface_endpoints" {
   type        = list(string)
-  description = "Optional interface endpoints (billed hourly per AZ). See docs/cost-analysis.md."
-  default     = []
+  description = "Interface endpoints (PrivateLink) created when enabled, by AWS service short name. Tier 1: sqs, sns, secretsmanager, logs, events. Tier 2: kms, monitoring, xray, ecr.api, ecr.dkr, sts. Trim the list to control cost. Billed hourly per AZ plus per GB. See docs/cost-analysis.md."
+  default     = ["sqs", "sns", "secretsmanager", "logs", "events", "kms", "monitoring", "xray", "ecr.api", "ecr.dkr", "sts"]
+}
+
+variable "enable_interface_endpoints" {
+  description = "Whether to create interface VPC endpoints in the primary Region."
+  type        = bool
+  default     = false
+}
+
+variable "enable_interface_endpoints_dr" {
+  description = "Whether to create interface VPC endpoints in the DR Region."
+  type        = bool
+  default     = false
+}
+
+variable "interface_endpoints_fallback_to_dr" {
+  description = "Whether interface endpoints unavailable in af-south-1 should be created in the DR Region."
+  type        = bool
+  default     = false
+}
+
+variable "restrict_interface_endpoints_to_organization" {
+  description = "Whether interface endpoint policies should restrict access to the AWS Organization."
+  type        = bool
+  default     = false
+}
+
+variable "enable_interface_endpoints_primary" {
+  description = "Enable Interface VPC Endpoints in primary region"
+  type        = bool
+  default     = true
 }
 
 # ---- VPC Flow Logs (owned here; other repos consume, never recreate) ----

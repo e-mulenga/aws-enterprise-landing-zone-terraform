@@ -72,8 +72,3 @@ output "gateway_endpoint_ids" {
   description = "Gateway endpoint IDs by service (for example s3)."
   value       = { for k, v in aws_vpc_endpoint.gateway : k => v.id }
 }
-
-output "interface_endpoint_ids" {
-  description = "Interface endpoint IDs by service."
-  value       = { for k, v in aws_vpc_endpoint.interface : k => v.id }
-}

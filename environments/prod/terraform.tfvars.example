@@ -52,3 +52,13 @@ enable_vpc_flow_logs_dr      = false     # enable only during an active DR failo
 vpc_flow_logs_destination    = "both"    # cloudwatch for real-time alarms + s3 for cheap long-term/Athena
 vpc_flow_logs_traffic_type   = "ALL"     # full visibility — prod compliance posture
 vpc_flow_logs_retention_days = 90
+
+# ---- Interface VPC Endpoints (PrivateLink): owned by this repo, consumed ----
+# ---- through the interface_endpoint_* root outputs. Full catalogue in prod. -
+enable_interface_endpoints_primary           = true
+enable_interface_endpoints_dr                = false   # enable for a warm standby or at DR failover (see README section 13)
+restrict_interface_endpoints_to_organization = true    # aws:PrincipalOrgID endpoint policy (sts excluded)
+interface_endpoints = [
+  "sqs", "sns", "secretsmanager", "logs", "events",            # Tier 1
+  "kms", "monitoring", "xray", "ecr.api", "ecr.dkr", "sts",    # Tier 2
+]

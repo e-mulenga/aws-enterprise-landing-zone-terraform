@@ -73,7 +73,13 @@ intra_subnet_cidrs = [
 enable_nat_gateway_primary = false
 enable_nat_gateway_dr      = false
 gateway_endpoints          = ["s3"]
-interface_endpoints        = [] # ~$7-8 per endpoint per AZ per month
+
+# Interface endpoints (PrivateLink): OFF in dev. Billed per endpoint per AZ per hour
+# (~$7-8 per endpoint per AZ per month) plus per GB. Tier 1 listed; see README section 7.
+enable_interface_endpoints_primary           = false
+enable_interface_endpoints_dr                = false
+restrict_interface_endpoints_to_organization = false
+interface_endpoints                          = ["sqs", "sns", "secretsmanager", "logs", "events"]
 
 # Identity
 identity_center_admin_group = "CloudAdmins"

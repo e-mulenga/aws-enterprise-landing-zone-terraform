@@ -49,5 +49,18 @@ locals {
       nat_public_ips      = module.networking_eu_west_1.nat_public_ips
     }
   }
+}
 
+locals {
+  interface_endpoints_in_primary = (
+    var.enable_interface_endpoints_primary
+    ? var.interface_endpoints
+    : []
+  )
+
+  # Explicit Landing Zone design:
+  # no automatic service discovery and no DR fallback calculation.
+  interface_endpoints_dr_fallback = []
+
+  deploy_vpc_endpoints_dr = var.enable_interface_endpoints_dr
 }

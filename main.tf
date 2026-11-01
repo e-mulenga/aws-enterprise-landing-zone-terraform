@@ -304,6 +304,50 @@ module "vpc_flow_logs_eu_west_1" {
   kms_key_arn             = try(module.kms.shared_kms_keys["s3"].arn, null)
 }
 
+# ---- Interface VPC Endpoints (PrivateLink): owned here. Other repos ------
+# ---- consume the outputs below and never create a second endpoint for ----
+# ---- the same service in these VPCs (private DNS allows only one). -------
+# Services this Region does not offer are listed from the API, not assumed.
+
+module "vpc_endpoints_af_south_1" {
+  count  = var.enable_interface_endpoints ? 1 : 0
+  source = "./modules/vpc-endpoints"
+
+  providers = {
+    aws = aws.af_south_1
+  }
+
+  organization_name               = var.organization_name
+  environment                     = var.environment
+  vpc_id                          = module.networking_af_south_1.vpc_id
+  vpc_cidr                        = module.networking_af_south_1.vpc_cidr_block
+  subnet_ids                      = module.networking_af_south_1.private_subnet_ids
+  availability_zones              = module.networking_af_south_1.azs
+  interface_endpoints             = var.interface_endpoints_fallback_to_dr ? local.interface_endpoints_in_primary : var.interface_endpoints
+  endpoint_policy_organization_id = var.restrict_interface_endpoints_to_organization ? var.organization_id : null
+}
+
+# DR Region: full mirror when enable_interface_endpoints_dr = true, otherwise only
+# the services af-south-1 could not provide.
+module "vpc_endpoints_eu_west_1" {
+  count  = local.deploy_vpc_endpoints_dr ? 1 : 0
+  source = "./modules/vpc-endpoints"
+
+  providers = {
+    aws = aws.eu_west_1
+  }
+
+  organization_name               = var.organization_name
+  environment                     = var.environment
+  vpc_id                          = module.networking_eu_west_1.vpc_id
+  vpc_cidr                        = module.networking_eu_west_1.vpc_cidr_block
+  subnet_ids                      = module.networking_eu_west_1.private_subnet_ids
+  availability_zones              = module.networking_eu_west_1.azs
+  interface_endpoints             = var.enable_interface_endpoints_dr ? var.interface_endpoints : local.interface_endpoints_dr_fallback
+  additional_ingress_cidr_blocks  = length(local.interface_endpoints_dr_fallback) > 0 ? [var.af_south_1.vpc_cidr] : []
+  endpoint_policy_organization_id = var.restrict_interface_endpoints_to_organization ? var.organization_id : null
+}
+
 # ---- 14. Route 53 foundation (existing hosted zone) + ACM -----------------
 module "dns" {
   source = "./modules/dns"

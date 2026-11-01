@@ -45,3 +45,11 @@ enable_vpc_flow_logs_dr      = false     # DR VPC is idle — nothing to log the
 vpc_flow_logs_destination    = "s3"      # s3-only: cheapest, still queryable via Athena
 vpc_flow_logs_traffic_type   = "REJECT"  # denied-traffic only — see docs/vpc-flow-logs-cost-analysis.md
 vpc_flow_logs_retention_days = 30
+
+# ---- Interface VPC Endpoints (PrivateLink): owned by this repo, consumed ----
+# ---- through the interface_endpoint_* root outputs. Tier 1 only in test to --
+# ---- keep the hourly cost down while still exercising the module. -----------
+enable_interface_endpoints_primary           = true
+enable_interface_endpoints_dr                = false   # DR VPC is idle — nothing to connect there
+restrict_interface_endpoints_to_organization = true    # rehearse the prod data perimeter in test
+interface_endpoints                          = ["sqs", "sns", "secretsmanager", "logs", "events"]
