@@ -526,4 +526,11 @@ output "contract_schema_version" {
   value       = local.contract_schema_version
 }
 
-
+output "terraform_state" {
+  description = "Where this stack's state lives, so downstream repositories can configure terraform_remote_state without asking. Not secret."
+  value = {
+    bucket = var.state_bucket_name
+    key    = var.state_key
+    region = var.state_region
+  }
+}

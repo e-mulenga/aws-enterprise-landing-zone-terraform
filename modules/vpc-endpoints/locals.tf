@@ -46,6 +46,10 @@ locals {
     ]
   })
 
+  # Only the first az_count subnets/AZs get endpoint interfaces.
+  endpoint_subnet_ids = slice(var.subnet_ids, 0, min(var.az_count, length(var.subnet_ids)))
+  endpoint_azs        = slice(var.availability_zones, 0, min(var.az_count, length(var.availability_zones)))
+
   tags = merge(var.tags, {
     Environment = var.environment
     Region      = data.aws_region.current.name

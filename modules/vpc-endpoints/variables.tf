@@ -35,12 +35,23 @@ variable "additional_ingress_cidr_blocks" {
 }
 
 variable "subnet_ids" {
-  description = "Private subnet IDs, one per Availability Zone, that receive the endpoint network interfaces. Never pass public subnets."
+  description = "Private subnet IDs, one per Availability Zone (same order as availability_zones), of which the first az_count receive the endpoint network interfaces. Never pass public subnets."
   type        = list(string)
 
   validation {
-    condition     = length(var.subnet_ids) >= 2
-    error_message = "Pass at least two private subnets in different Availability Zones so every endpoint is Multi-AZ."
+    condition     = length(var.subnet_ids) >= 1
+    error_message = "Pass at least one private subnet."
+  }
+}
+
+variable "az_count" {
+  description = "Number of AZs (from the front of subnet_ids) that receive each endpoint network interface. Endpoints are billed per AZ per hour, so 1 halves the cost."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.az_count >= 1 && var.az_count <= 3
+    error_message = "az_count must be between 1 and 3."
   }
 }
 

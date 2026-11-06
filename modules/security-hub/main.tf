@@ -11,7 +11,7 @@ data "aws_region" "current" {}
 locals {
   standard_arns = {
     fsbp = "arn:aws:securityhub:${data.aws_region.current.name}::standards/aws-foundational-security-best-practices/v/1.0.0"
-    cis  = "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.4.0"
+    cis  = "arn:aws:securityhub:${data.aws_region.current.name}::standards/cis-aws-foundations-benchmark/v/1.4.0"
     nist = "arn:aws:securityhub:${data.aws_region.current.name}::standards/nist-800-53/v/5.0.0"
   }
 }
@@ -97,4 +97,12 @@ resource "aws_cloudwatch_event_target" "sechub_alerts" {
   rule      = aws_cloudwatch_event_rule.sechub_critical.name
   target_id = "SendToSNS"
   arn       = aws_sns_topic.sechub_alerts.arn
+}
+
+resource "aws_sns_topic_subscription" "email" {
+  count = var.alert_email != "" ? 1 : 0
+
+  topic_arn = aws_sns_topic.sechub_alerts.arn
+  protocol  = "email"
+  endpoint  = var.alert_email
 }

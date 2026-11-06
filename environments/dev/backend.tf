@@ -3,8 +3,8 @@ terraform {
 
   backend "s3" {
     bucket       = "REPLACE-ME-org-terraform-state-dev"
-    key          = "landing-zone/dev/terraform.tfstate" # Path inside the bucket
-    region       = "af-south-1"
+    key          = "your-s3-key" # Path inside the bucket
+    region       = "your-bucket-region"
     encrypt      = true # Ensures server-side encryption
     use_lockfile = true # Enables native S3 state locking (replaces DynamoDB)
   }

@@ -108,12 +108,6 @@ variable "logging_account_id" {
   default     = ""
 }
 
-variable "shared_services_account_id" {
-  type        = string
-  description = "AWS Account ID of the Shared Services account."
-  default     = ""
-}
-
 # ---- Governance services (all free, OFF until you need them) ----------
 variable "enable_scp" {
   type        = bool
@@ -159,7 +153,7 @@ variable "approved_model_arns" {
 variable "allowed_regions" {
   type        = list(string)
   description = "Approved AWS regions. SCPs will deny activity outside this list."
-  default     = ["af-south-1", "eu-west-1", "us-east-1"]
+  default     = ["af-south-1", "eu-west-1"]
 }
 
 # ---- IAM Identity Center ------------------------------------
@@ -171,12 +165,6 @@ variable "identity_center_admin_group" {
 
 # ---- Security Services --------------------------------------
 
-variable "config_enabled" {
-  type        = bool
-  description = "Enable AWS Config across all accounts."
-  default     = true
-}
-
 # ---- CloudTrail / Logging / Storage / Monitoring ------------
 variable "cloudtrail_bucket_name" {
   type        = string
@@ -187,7 +175,7 @@ variable "cloudtrail_bucket_name" {
 variable "log_retention_days" {
   type        = number
   description = "CloudWatch log group retention for CloudTrail."
-  default     = 365
+  default     = 90
 
   validation {
     condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653], var.log_retention_days)
@@ -206,12 +194,6 @@ variable "existing_buckets" {
   default = {}
 }
 
-variable "logging_region" {
-  description = "AWS region containing the centralized logging buckets"
-  type        = string
-  default     = "us-east-1"
-}
-
 # ---- Encryption ---------------------------------------------
 
 variable "key_rotation_enabled" {
@@ -223,12 +205,6 @@ variable "key_rotation_enabled" {
 variable "use_aws_managed_keys" {
   type        = bool
   description = "true = AWS managed keys, no CMKs (dev, test). false = five shared customer managed keys (prod, about USD 5/month)."
-  default     = true
-}
-
-variable "use_aws_managed_kms" {
-  description = "Use AWS-managed encryption instead of customer-managed KMS keys"
-  type        = bool
   default     = true
 }
 
@@ -254,7 +230,7 @@ variable "backup_retention_days" {
 variable "enable_backup" {
   type        = bool
   description = "Create the backup vault, plan and tag-based selection. The skeleton is free; charges start when resources are tagged BackupEnabled=true."
-  default     = false
+  default     = true
 }
 
 variable "backup_daily_retention_days" {
@@ -327,28 +303,16 @@ variable "single_nat_gateway" {
   default     = true
 }
 
-variable "allow_public_web_ingress" {
-  type        = bool
-  description = "Open 80/443 to the internet on each default security group. Keep false."
-  default     = false
-}
-
 variable "gateway_endpoints" {
   type        = list(string)
   description = "Free gateway endpoints created in both VPCs."
-  default     = ["s3"]
+  default     = ["s3", "dynamodb"]
 }
 
 variable "interface_endpoints" {
   type        = list(string)
   description = "Interface endpoints (PrivateLink) created when enabled, by AWS service short name. Tier 1: sqs, sns, secretsmanager, logs, events. Tier 2: kms, monitoring, xray, ecr.api, ecr.dkr, sts. Trim the list to control cost. Billed hourly per AZ plus per GB. See docs/cost-analysis.md."
   default     = ["sqs", "sns", "secretsmanager", "logs", "events", "kms", "monitoring", "xray", "ecr.api", "ecr.dkr", "sts"]
-}
-
-variable "enable_interface_endpoints" {
-  description = "Whether to create interface VPC endpoints in the primary Region."
-  type        = bool
-  default     = false
 }
 
 variable "enable_interface_endpoints_dr" {
@@ -372,14 +336,14 @@ variable "restrict_interface_endpoints_to_organization" {
 variable "enable_interface_endpoints_primary" {
   description = "Enable Interface VPC Endpoints in primary region"
   type        = bool
-  default     = true
+  default     = false
 }
 
 # ---- VPC Flow Logs (owned here; other repos consume, never recreate) ----
 variable "enable_vpc_flow_logs_primary" {
   type        = bool
   description = "Flow logs on the af-south-1 VPC. Keep false until there is traffic worth analysing, to avoid paying for flow logs on an idle dev VPC."
-  default     = false
+  default     = true
 }
 
 variable "enable_vpc_flow_logs_dr" {
@@ -402,7 +366,7 @@ variable "vpc_flow_logs_destination" {
 variable "vpc_flow_logs_traffic_type" {
   type        = string
   description = "ALL, ACCEPT, or REJECT. REJECT-only cuts volume/cost substantially and still catches most security-relevant signal (denied connections); use ALL when full network troubleshooting is needed."
-  default     = "ALL"
+  default     = "REJECT"
 
   validation {
     condition     = contains(["ALL", "ACCEPT", "REJECT"], var.vpc_flow_logs_traffic_type)
@@ -413,7 +377,7 @@ variable "vpc_flow_logs_traffic_type" {
 variable "vpc_flow_logs_retention_days" {
   type        = number
   description = "CloudWatch Log group retention (only relevant when the destination includes cloudwatch)."
-  default     = 30
+  default     = 14
 }
 
 # ---- Budget Alerting ----------------------------------------
@@ -439,7 +403,7 @@ variable "enable_monitoring" {
 variable "enable_security_alarms" {
   type        = bool
   description = "CIS-style CloudWatch alarms (about USD 0.10 each). Needs a CloudTrail log group."
-  default     = false
+  default     = true
 }
 
 # ---- DNS (existing Route 53 zone) ------------------------------------
@@ -487,4 +451,65 @@ variable "enable_ecr" {
 variable "ecr_keep_last_images" {
   type    = number
   default = 10
+}
+
+# ---- Additions in this refactor ----
+
+variable "interface_endpoint_az_count" {
+  type        = number
+  description = "AZs per interface endpoint. 1 halves the hourly cost; endpoints are billed per AZ per hour. Use 2 only for production workloads that need AZ-local resilience."
+  default     = 1
+
+  validation {
+    condition     = var.interface_endpoint_az_count >= 1 && var.interface_endpoint_az_count <= 2
+    error_message = "interface_endpoint_az_count must be 1 or 2."
+  }
+}
+
+variable "log_archive_expiry_days" {
+  type        = number
+  description = "Days before CloudTrail/Config archive objects expire. Lower = cheaper. Raise it only if a regulation requires longer retention."
+  default     = 730
+}
+
+variable "access_log_expiry_days" {
+  type        = number
+  description = "Days before S3 access/VPC flow log objects and GuardDuty exports expire."
+  default     = 90
+}
+
+variable "dr_kms_replicas_enabled" {
+  type        = bool
+  description = "Create multi-Region customer managed keys with eu-west-1 replicas so DR repositories can use the same key material. Only meaningful when use_aws_managed_keys = false. Changing multi_region on an existing key forces replacement."
+  default     = false
+}
+
+variable "enable_cost_anomaly_detection" {
+  type        = bool
+  description = "AWS Cost Anomaly Detection monitor and e-mail subscription (free)."
+  default     = true
+}
+
+variable "state_bucket_name" {
+  type        = string
+  description = "Name of the S3 bucket holding this stack's Terraform state. Echoed in the contract so downstream repositories need not ask for it. Not a secret."
+  default     = "<landing-zone-state-bucket>"
+}
+
+variable "state_key" {
+  type        = string
+  description = "S3 key of this stack's state file (echoed in the contract)."
+  default     = "your-s3-key"
+}
+
+variable "state_region" {
+  type        = string
+  description = "Region of the state bucket (echoed in the contract)."
+  default     = "<your-bucket-region>"
+}
+
+variable "allow_public_web_ingress" {
+  description = "Open ports 80 and 443 to the internet on the default security group. Keep false in all environments."
+  type        = bool
+  default     = false
 }

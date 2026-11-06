@@ -62,37 +62,15 @@ module "vpc" {
     Name = "${local.name}-sg"
   })
 
-  default_security_group_ingress = concat(local.public_web_ingress, [
-    {
-      description = "Allow internal VPC traffic"
-      from_port   = 0
-      to_port     = 0
-      protocol    = "-1"
-      cidr_blocks = var.vpc_cidr
-    },
-  ])
-
-  default_security_group_egress = [
-    {
-      description = "Allow all outbound traffic"
-      from_port   = 0
-      to_port     = 0
-      protocol    = "-1"
-      cidr_blocks = "0.0.0.0/0"
-    },
-  ]
+  # CIS EC2.2: the default security group carries no rules by default. Workloads create their own security groups.
+  # When allow_public_web_ingress is true, ports 80 and 443 are opened to the internet.
+  default_security_group_ingress = var.allow_public_web_ingress ? [
+    { from_port = 80, to_port = 80, protocol = "tcp", cidr_blocks = "0.0.0.0/0", description = "HTTP from internet" },
+    { from_port = 443, to_port = 443, protocol = "tcp", cidr_blocks = "0.0.0.0/0", description = "HTTPS from internet" },
+  ] : []
+  default_security_group_egress = []
 
   tags = local.tags
-}
-
-resource "aws_security_group" "main" {
-  name        = "${local.name}-sg"
-  description = "Primary security group for ${local.name}"
-  vpc_id      = module.vpc.vpc_id
-
-  tags = merge(local.tags, {
-    Name = "${local.name}-sg"
-  })
 }
 
 # ---- Gateway endpoints (free) -------------------------------

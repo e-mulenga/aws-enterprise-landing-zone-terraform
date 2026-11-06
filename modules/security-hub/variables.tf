@@ -6,11 +6,6 @@ variable "organization_name" {
   type = string
 }
 
-variable "enabled" {
-  type    = bool
-  default = true
-}
-
 variable "standards" {
   type        = list(string)
   default     = ["fsbp"]
@@ -32,4 +27,10 @@ variable "sns_kms_key_id" {
   type        = string
   default     = null
   description = "CMK for the alerts topic. Must allow events.amazonaws.com. null = unencrypted topic."
+}
+
+variable "alert_email" {
+  type        = string
+  description = "E-mail for critical/high Security Hub findings. Empty = no subscription."
+  default     = ""
 }

@@ -137,7 +137,6 @@ module "security_hub" {
 
   environment        = var.environment
   organization_name  = var.organization_name
-  enabled            = var.securityhub_enabled
   standards          = var.securityhub_standards
   organization_aware = var.securityhub_organization_aware
 
@@ -208,8 +207,6 @@ module "monitoring" {
 
   depends_on = [module.cloudtrail]
 }
-
-# ---- 13. Networking ------------------------------------------
 
 # ---- 13. Networking ------------------------------------------
 module "networking_af_south_1" {
@@ -310,7 +307,7 @@ module "vpc_flow_logs_eu_west_1" {
 # Services this Region does not offer are listed from the API, not assumed.
 
 module "vpc_endpoints_af_south_1" {
-  count  = var.enable_interface_endpoints ? 1 : 0
+  count  = var.enable_interface_endpoints_primary ? 1 : 0
   source = "./modules/vpc-endpoints"
 
   providers = {

@@ -1,13 +1,13 @@
 # ============================================================
-# Environment: DEV — Example tfvars (copy to terraform.tfvars)
-# ============================================================
-# cp environments/dev/terraform.tfvars.example environments/dev/terraform.tfvars
-# Then populate with real values. NEVER commit terraform.tfvars.
+# Environment: DEV. IDENTITY ONLY.
+# Copy to terraform.tfvars (git-ignored). Controls, flags and cost settings are NOT set here:
+# they live in environments/common.tfvars so dev, test and prod behave identically.
 # ============================================================
 
 organization_name = "acme-enterprise"
-aws_region        = "af-south-1"
 environment       = "dev"
+owner       = "Platform Engineering"
+cost_center       = "LAB001"
 
 # Account root emails — must be unique globally
 security_account_email        = "security-dev@example.com"
@@ -16,21 +16,12 @@ shared_services_account_email = "shared-dev@example.com"
 development_account_email     = "dev@example.com"
 production_account_email      = "prod@example.com"
 
-# After first apply, populate these with the created account IDs
-security_account_id        = ""
-logging_account_id         = ""
-shared_services_account_id = ""
+# Fill in after the accounts exist (first apply creates them; or pass existing IDs).
+management_account_id = ""
+security_account_id   = ""
+logging_account_id    = ""
 
-# Governance
-owner       = "Platform Engineering"
-cost_center = "LAB001"
-
-# ---- Cost posture: LOWEST COST. Anything that bills stays off. --------------
-use_aws_managed_keys = true # free; customer-managed keys cost $1/month each
-
-# Region controls
-allowed_regions = ["af-south-1","eu-west-1"]
-
+# Distinct, non-overlapping ranges per environment so VPCs can be peered later.
 af-south-1 = {
   vpc_cidr = "your-cidr-range"
  
@@ -69,53 +60,10 @@ intra_subnet_cidrs = [
 ]
 }
 
-# Networking: NAT gateways (~$35/month each) are OFF. The S3 gateway endpoint is free.
-enable_nat_gateway_primary = false
-enable_nat_gateway_dr      = false
-gateway_endpoints          = ["s3"]
+# Per-environment allowed difference: the budget ceiling.
+monthly_budget_usd = 20
+budget_alert_email = "cloudteam@example.com"
+alert_email        = "cloudteam@example.com"
 
-# Interface endpoints (PrivateLink): OFF in dev. Billed per endpoint per AZ per hour
-# (~$7-8 per endpoint per AZ per month) plus per GB. Tier 1 listed; see README section 7.
-enable_interface_endpoints_primary           = false
-enable_interface_endpoints_dr                = false
-restrict_interface_endpoints_to_organization = false
-interface_endpoints                          = ["sqs", "sns", "secretsmanager", "logs", "events"]
-
-# Identity
-identity_center_admin_group = "CloudAdmins"
-
-# Security services
-guardduty_enabled    = true
-securityhub_enabled  = true
-config_enabled       = true
-
-# CloudTrail
-cloudtrail_bucket_name = "example-org-dev-cloudtrail"
-log_retention_days     = 90
-
-# Encryption
-kms_key_rotation_enabled = true
-
-# Storage
-s3_versioning_enabled = true
-
-# Backup
-backup_retention_days = 14
-
-# Budget alerting
-monthly_budget_usd  = 100
-budget_alert_email  = "cloudteam@example.com"
-
-# ---- Optional ---------------------------------------------------------------
-route53_domain_name = "yourdomain.com" # existing hosted zone; ACM certs are free
-github_oidc_mode    = "create"       # "create" if the provider does not exist yet
-alert_email         = "alertemailaddress@yourdomain.com"
-
-# ---- VPC Flow Logs: owned by this repo, consumed by other repos via -------
-# ---- the vpc_flow_logs root output. Off by default — nothing runs on ------
-# ---- this VPC yet, so there is no traffic worth paying to log. ------------
-enable_vpc_flow_logs_primary = false
-enable_vpc_flow_logs_dr      = false
-vpc_flow_logs_destination    = "s3"      # cheapest option once enabled (no per-GB ingestion charge)
-vpc_flow_logs_traffic_type   = "REJECT"  # denied-traffic only keeps volume (and cost) low
-vpc_flow_logs_retention_days = 14        # only used if destination includes cloudwatch
+# Existing public hosted zone (leave "" to skip DNS/ACM).
+route53_domain_name = ""

@@ -1,55 +1,69 @@
 # ============================================================
-# Environment: TEST — Example tfvars
+# Environment: TEST. IDENTITY ONLY.
+# Copy to terraform.tfvars (git-ignored). Controls, flags and cost settings are NOT set here:
+# they live in environments/common.tfvars so dev, test and prod behave identically.
 # ============================================================
 
-organization_name = "example-org"
-aws_region        = "af-south-1"
+organization_name = "acme-enterprise"
 environment       = "test"
+owner             = "Platform Engineering"
+cost_center       = "LAB002"
 
+# Unique root e-mail per account
 security_account_email        = "security-test@example.com"
 logging_account_email         = "logging-test@example.com"
 shared_services_account_email = "shared-test@example.com"
 development_account_email     = "dev-test@example.com"
 production_account_email      = "prod-test@example.com"
 
-security_account_id        = ""
-logging_account_id         = ""
-shared_services_account_id = ""
+# Fill in after the accounts exist (first apply creates them; or pass existing IDs).
+management_account_id = ""
+security_account_id   = ""
+logging_account_id    = ""
 
-owner       = "Platform Engineering"
-cost_center = "TEST001"
+# Distinct, non-overlapping ranges per environment so VPCs can be peered later.
+af-south-1 = {
+  vpc_cidr = "your-cidr-range"
+ 
+  private_subnet_cidrs = [
+  "your-subnet-cidr-range/24",
+  "your-subnet-cidr-range/24"
+]
 
-allowed_regions = ["af-south-1", "eu-west-1"]
+public_subnet_cidrs = [
+  "your-subnet-cidr-range/24",
+  "your-subnet-cidr-range/24"
+]
 
-identity_center_admin_group = "CloudAdmins"
+intra_subnet_cidrs = [
+  "your-subnet-cidr-range/24",
+  "your-subnet-cidr-range/24"
+]
+}
 
-guardduty_enabled    = true
-securityhub_enabled  = true
-config_enabled       = true
+eu-west-1 = {
+  vpc_cidr = "your-cidr-range"
+ 
+  private_subnet_cidrs = [
+  "your-subnet-cidr-range/24",
+  "your-subnet-cidr-range/24"
+]
 
-cloudtrail_bucket_name = "example-org-test-cloudtrail"
-log_retention_days     = 180
+public_subnet_cidrs = [
+  "your-subnet-cidr-range/24",
+  "your-subnet-cidr-range/24"
+]
 
-kms_key_rotation_enabled = true
-s3_versioning_enabled    = true
+intra_subnet_cidrs = [
+  "your-subnet-cidr-range/24",
+  "your-subnet-cidr-range/24"
+]
+}
 
-backup_retention_days = 21
-
-monthly_budget_usd = 250
+# Per-environment allowed difference: the budget ceiling.
+monthly_budget_usd = 20
 budget_alert_email = "cloudteam@example.com"
+alert_email        = "cloudteam@example.com"
 
-# ---- VPC Flow Logs: owned by this repo, consumed by other repos via -------
-# ---- the vpc_flow_logs root output — they must never create their own. ----
-enable_vpc_flow_logs_primary = true
-enable_vpc_flow_logs_dr      = false     # DR VPC is idle — nothing to log there
-vpc_flow_logs_destination    = "s3"      # s3-only: cheapest, still queryable via Athena
-vpc_flow_logs_traffic_type   = "REJECT"  # denied-traffic only — see docs/vpc-flow-logs-cost-analysis.md
-vpc_flow_logs_retention_days = 30
-
-# ---- Interface VPC Endpoints (PrivateLink): owned by this repo, consumed ----
-# ---- through the interface_endpoint_* root outputs. Tier 1 only in test to --
-# ---- keep the hourly cost down while still exercising the module. -----------
-enable_interface_endpoints_primary           = true
-enable_interface_endpoints_dr                = false   # DR VPC is idle — nothing to connect there
-restrict_interface_endpoints_to_organization = true    # rehearse the prod data perimeter in test
-interface_endpoints                          = ["sqs", "sns", "secretsmanager", "logs", "events"]
+# Existing public hosted zone (leave "" to skip DNS/ACM).
+route53_domain_name = ""

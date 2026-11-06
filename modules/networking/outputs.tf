@@ -49,8 +49,7 @@ output "default_security_group_id" {
 }
 
 output "security_group_id" {
-  description = "ID of the custom VPC security group"
-  value       = aws_security_group.main.id
+  value = module.vpc.default_security_group_id
 }
 
 output "vpc_cidr" {
