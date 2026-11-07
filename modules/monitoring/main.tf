@@ -6,9 +6,19 @@
 # CloudWatch alarms and EventBridge cannot publish to a topic encrypted with the
 # AWS managed key aws/sns, so the topic is unencrypted by default. Prod can pass
 # a customer managed key that trusts cloudwatch.amazonaws.com and events.amazonaws.com.
+
+# ---- af-south-1 topic for cloudtrail metric filters and alarms (CIS) ----------------
 resource "aws_sns_topic" "alerts" {
   name              = "${var.organization_name}-${var.environment}-platform-alerts"
   kms_master_key_id = var.sns_kms_key_id
+  tags              = { Name = "${var.organization_name}-${var.environment}-platform-alerts" }
+}
+
+# ---- us-east-1 topic for cloudtrail metric filters and alarms (CIS) ----------------
+resource "aws_sns_topic" "alerts_us_east_1" {
+  provider          = aws.us_east_1
+  kms_master_key_id = var.sns_kms_key_id
+  name              = "${var.organization_name}-${var.environment}-platform-alerts-security"
   tags              = { Name = "${var.organization_name}-${var.environment}-platform-alerts" }
 }
 
@@ -72,6 +82,8 @@ locals {
 resource "aws_cloudwatch_log_metric_filter" "alarms" {
   for_each = local.active_alarms
 
+  provider = aws.us_east_1
+
   name           = "${var.organization_name}-${var.environment}-${each.key}"
   pattern        = each.value.pattern
   log_group_name = var.cloudtrail_log_group
@@ -87,6 +99,8 @@ resource "aws_cloudwatch_log_metric_filter" "alarms" {
 resource "aws_cloudwatch_metric_alarm" "alarms" {
   for_each = local.active_alarms
 
+  provider = aws.us_east_1
+
   alarm_name          = "${var.organization_name}-${var.environment}-${each.key}"
   alarm_description   = each.value.description
   comparison_operator = "GreaterThanOrEqualToThreshold"
@@ -97,8 +111,8 @@ resource "aws_cloudwatch_metric_alarm" "alarms" {
   statistic           = "Sum"
   threshold           = 1
   treat_missing_data  = "notBreaching"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-  ok_actions          = [aws_sns_topic.alerts.arn]
+  alarm_actions       = [aws_sns_topic.alerts_us_east_1.arn]
+  ok_actions          = [aws_sns_topic.alerts_us_east_1.arn]
 
   tags = { Severity = "HIGH" }
 }

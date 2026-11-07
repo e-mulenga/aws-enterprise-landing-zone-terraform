@@ -5,7 +5,7 @@
 # ============================================================
 
 aws_region      = "af-south-1"
-allowed_regions = ["af-south-1", "eu-west-1"]
+allowed_regions = ["af-south-1", "eu-west-1", "us-east-1"]
 
 # ---- Encryption: one strategy for every environment ----
 # AWS managed keys cost nothing. Set false to create the five shared CMKs (USD 1/month each, per environment).

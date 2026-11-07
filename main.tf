@@ -196,6 +196,11 @@ module "monitoring" {
   count  = var.enable_monitoring ? 1 : 0
   source = "./modules/monitoring"
 
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
   aws_region             = var.aws_region
   environment            = var.environment
   organization_name      = var.organization_name
