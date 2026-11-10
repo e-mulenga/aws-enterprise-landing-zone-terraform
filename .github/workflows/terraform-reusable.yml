@@ -1,0 +1,50 @@
+name: Reusable Terraform CI Quality Gates
+
+on:
+  workflow_call:
+    inputs:
+      terraform_version:
+        required: false
+        type: string
+        default: "1.6.0"
+
+jobs:
+  terraform-checks:
+    name: Lint, Validate & Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - name: Verify Terraform Formatting
+        run: terraform fmt -check -recursive
+        # Verification: Fails if any .tf file is unformatted.
+
+      - name: Initialize Terraform (Backend-Free)
+        run: terraform init -backend=false
+        # Verification: Confirms modules and provider schemas resolve correctly.
+
+      - name: Validate Terraform Configuration
+        run: terraform validate
+        # Verification: Ensures internal syntax consistency.
+
+      - name: Setup TFLint
+        uses: tflint-actions/setup-tflint@v3
+        with:
+          tflint_version: v0.50.0
+
+      - name: Run TFLint
+        run: tflint --recursive
+        # Verification: Catches best-practice issues and deprecated syntax.
+
+      - name: Run tfsec Security Scanner
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+        # Verification: Scans for cloud misconfigurations.
