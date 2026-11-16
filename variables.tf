@@ -39,15 +39,6 @@ variable "organization_id" {
   }
 }
 
-variable "allowed_regions" {
-  type = list(string)
-  default = [
-    "af-south-1",
-    "eu-west-1",
-    "us-east-1"
-  ]
-}
-
 # ---- Governance & tagging -------------------------------------
 variable "owner" {
   type        = string
@@ -742,19 +733,4 @@ variable "allow_public_web_ingress" {
   description = "Open ports 80 and 443 to the internet on the default security group. Keep false in all environments."
   type        = bool
   default     = false
-}
-
-variable "securityhub_standards" {
-  type    = list(string)
-  default = []
-}
-
-variable "enable_scp" {
-  type    = bool
-  default = false
-}
-
-variable "enable_identity_center" {
-  type    = bool
-  default = true
 }
