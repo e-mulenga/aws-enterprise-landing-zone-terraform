@@ -49,3 +49,14 @@ output "backup_key_arn" {
   description = "Key for AWS Backup vaults (shared-backup-key). null with AWS managed keys."
   value       = local.create_cmk ? aws_kms_key.shared["backup"].arn : null
 }
+
+# ---- DR replicas (empty unless dr_replicas_enabled = true) ----
+output "dr_replica_key_arns" {
+  description = "eu-west-1 replica key ARNs by purpose (rds, s3, backup, analytics, ai). Empty map when replicas are off."
+  value       = { for name, k in aws_kms_replica_key.shared : name => k.arn }
+}
+
+output "backup_dr_key_arn" {
+  description = "eu-west-1 replica of shared-backup-key, used by the DR backup vault. null when replicas are off."
+  value       = try(aws_kms_replica_key.shared["backup"].arn, null)
+}

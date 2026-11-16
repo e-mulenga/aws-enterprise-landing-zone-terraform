@@ -13,6 +13,7 @@ module "organization" {
 
 # ---- 2. Account Vending ------------------------------------
 module "accounts" {
+  count  = var.create_member_accounts ? 1 : 0
   source = "./modules/account-vending"
 
   organization_id               = module.organization.organization_id
@@ -29,6 +30,11 @@ module "accounts" {
 # ---- 3. Encryption: AWS managed keys (dev/test) or 5 shared CMKs (prod) ----
 module "kms" {
   source = "./modules/kms"
+
+  providers = {
+    aws    = aws
+    aws.dr = aws.eu_west_1
+  }
 
   environment           = var.environment
   organization_name     = var.organization_name
@@ -53,14 +59,17 @@ module "logging" {
 
   providers = { aws = aws.logging }
 
-  environment           = var.environment
-  organization_name     = var.organization_name
-  cloudtrail_bucket     = var.cloudtrail_bucket_name
-  s3_versioning_enabled = var.s3_versioning_enabled
-  kms_key_arn           = module.kms.cloudtrail_key_arn
-  log_retention_days    = var.log_retention_days
-  organization_id       = module.organization.organization_id
-  management_account_id = data.aws_caller_identity.current.account_id
+  environment            = var.environment
+  organization_name      = var.organization_name
+  cloudtrail_bucket      = var.cloudtrail_bucket_name
+  s3_versioning_enabled  = var.s3_versioning_enabled
+  kms_key_arn            = module.kms.cloudtrail_key_arn # null in dev/test => SSE-S3
+  log_retention_days     = var.log_retention_days
+  organization_id        = module.organization.organization_id
+  management_account_id  = data.aws_caller_identity.current.account_id
+  existing_buckets       = var.existing_buckets
+  archive_expiry_days    = var.log_archive_expiry_days
+  access_log_expiry_days = var.access_log_expiry_days
 
   depends_on = [module.accounts, module.kms]
 }
@@ -153,6 +162,14 @@ module "scp" {
   allowed_regions      = var.allowed_regions
   environment          = var.environment
 
+  ou_policies = {
+    for name, p in var.ou_scps : name => {
+      description     = p.description
+      target_ou_ids   = [for k in p.target_ous : module.organization.ou_ids[k]]
+      statements_json = p.statements_json
+    }
+  }
+
   depends_on = [module.accounts]
 }
 
@@ -161,10 +178,11 @@ module "iam_identity_center" {
   count  = var.enable_identity_center && var.create_member_accounts ? 1 : 0
   source = "./modules/iam-identity-center"
 
-  environment       = var.environment
-  organization_name = var.organization_name
-  admin_group_name  = var.identity_center_admin_group
-  accounts          = module.accounts[0].account_map
+  environment            = var.environment
+  organization_name      = var.organization_name
+  admin_group_name       = var.identity_center_admin_group
+  accounts               = module.accounts[0].account_map
+  custom_permission_sets = var.identity_center_custom_permission_sets
 
   depends_on = [module.accounts]
 }
@@ -209,6 +227,9 @@ module "monitoring" {
   budget_alert_email     = var.budget_alert_email != "" ? var.budget_alert_email : var.alert_email
   cloudtrail_log_group   = try(module.cloudtrail[0].log_group_name, var.existing_cloudtrail_log_group)
   enable_security_alarms = var.enable_security_alarms
+
+  enable_cost_anomaly_detection = var.enable_cost_anomaly_detection
+  anomaly_threshold_usd         = var.cost_anomaly_threshold_usd
 
   depends_on = [module.cloudtrail]
 }
@@ -410,4 +431,105 @@ module "github_oidc" {
   roles             = var.github_oidc_roles
 }
 
+# ---- 18. IAM Access Analyzer (free) -----------------------------
+module "access_analyzer" {
+  count  = var.enable_access_analyzer ? 1 : 0
+  source = "./modules/access-analyzer"
 
+  environment       = var.environment
+  organization_name = var.organization_name
+  analyzer_type     = var.access_analyzer_type
+}
+
+# ---- 19. Amazon Inspector (billed per scan, off by default) -----
+module "inspector" {
+  count  = var.enable_inspector ? 1 : 0
+  source = "./modules/inspector"
+
+  environment        = var.environment
+  organization_name  = var.organization_name
+  resource_types     = var.inspector_resource_types
+  organization_aware = var.securityhub_organization_aware
+}
+
+# ---- 20. Amazon Macie (billed per bucket and GB, off by default) ---
+module "macie" {
+  count  = var.enable_macie ? 1 : 0
+  source = "./modules/macie"
+
+  environment       = var.environment
+  organization_name = var.organization_name
+}
+
+# ---- 21. Config conformance pack and aggregator ------------------
+module "config_compliance" {
+  count  = var.enable_config_conformance_pack || var.enable_config_aggregator ? 1 : 0
+  source = "./modules/config-compliance"
+
+  environment             = var.environment
+  organization_name       = var.organization_name
+  enable_conformance_pack = var.enable_config_conformance_pack
+  enable_aggregator       = var.enable_config_aggregator
+  aggregator_regions      = ["af-south-1", "eu-west-1"]
+
+  depends_on = [module.config]
+}
+
+# ---- 22. Organisation tag policy (free) -------------------------
+module "tag_policies" {
+  count  = var.enable_tag_policy ? 1 : 0
+  source = "./modules/tag-policies"
+
+  environment          = var.environment
+  organization_name    = var.organization_name
+  organization_root_id = module.organization.root_id
+  enforced_for         = var.tag_policy_enforced_for
+}
+
+check "tag_policy_type_is_enabled" {
+  assert {
+    condition     = !var.enable_tag_policy || contains(module.organization.enabled_policy_types, "TAG_POLICY")
+    error_message = "enable_tag_policy needs the TAG_POLICY policy type enabled on the organisation root: aws organizations enable-policy-type --root-id <root> --policy-type TAG_POLICY."
+  }
+}
+
+# ---- 23. Cost and Usage Report (us-east-1) -----------------------
+module "cost_reporting" {
+  count  = var.enable_cost_reporting ? 1 : 0
+  source = "./modules/cost-reporting"
+
+  providers = {
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  environment       = var.environment
+  organization_name = var.organization_name
+}
+
+# ---- 24. DNS query logging and firewall (af-south-1 VPC) ---------
+module "dns_security_af_south_1" {
+  count  = var.enable_dns_query_logging_primary || length(var.dns_blocked_domains) > 0 ? 1 : 0
+  source = "./modules/dns-security"
+
+  providers = {
+    aws = aws.af_south_1
+  }
+
+  environment          = var.environment
+  organization_name    = var.organization_name
+  vpc_id               = module.networking_af_south_1.vpc_id
+  vpc_name             = "primary"
+  enable_query_logging = var.enable_dns_query_logging_primary
+  log_retention_days   = var.log_retention_days
+  blocked_domains      = var.dns_blocked_domains
+}
+
+# ---- 25. Central CloudWatch observability ------------------------
+module "observability" {
+  count  = var.enable_central_observability ? 1 : 0
+  source = "./modules/observability"
+
+  environment       = var.environment
+  organization_name = var.organization_name
+  organization_id   = module.organization.organization_id
+}

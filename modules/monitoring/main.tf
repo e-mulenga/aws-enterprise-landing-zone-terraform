@@ -157,6 +157,10 @@ locals {
     guardduty   = { source = "aws.guardduty", detail_type = "GuardDuty Finding" }
     securityhub = { source = "aws.securityhub", detail_type = "Security Hub Findings - Imported" }
     config      = { source = "aws.config", detail_type = "Config Rules Compliance Change" }
+    # Added with the Access Analyzer, Inspector and Macie modules. The rules are free and match nothing while those services are off.
+    access_analyzer = { source = "aws.access-analyzer", detail_type = "Access Analyzer Finding" }
+    inspector       = { source = "aws.inspector2", detail_type = "Inspector2 Finding" }
+    macie           = { source = "aws.macie", detail_type = "Macie Finding" }
   }
 }
 
@@ -316,5 +320,37 @@ resource "aws_budgets_budget" "monthly" {
     threshold_type             = "PERCENTAGE"
     notification_type          = "ACTUAL"
     subscriber_email_addresses = var.budget_alert_email != "" ? [var.budget_alert_email] : []
+  }
+}
+
+# ---- Cost Anomaly Detection (free) ----------------------------
+# One monitor per AWS service. Cost Explorer is a global API, so no provider alias is needed.
+# The e-mail subscription is only created when an address is known.
+resource "aws_ce_anomaly_monitor" "services" {
+  count = var.enable_cost_anomaly_detection ? 1 : 0
+
+  name              = "${var.organization_name}-${var.environment}-service-anomalies"
+  monitor_type      = "DIMENSIONAL"
+  monitor_dimension = "SERVICE"
+}
+
+resource "aws_ce_anomaly_subscription" "email" {
+  count = var.enable_cost_anomaly_detection && var.budget_alert_email != "" ? 1 : 0
+
+  name             = "${var.organization_name}-${var.environment}-anomaly-alerts"
+  frequency        = "DAILY"
+  monitor_arn_list = [aws_ce_anomaly_monitor.services[0].arn]
+
+  subscriber {
+    type    = "EMAIL"
+    address = var.budget_alert_email
+  }
+
+  threshold_expression {
+    dimension {
+      key           = "ANOMALY_TOTAL_IMPACT_ABSOLUTE"
+      match_options = ["GREATER_THAN_OR_EQUAL"]
+      values        = [tostring(var.anomaly_threshold_usd)]
+    }
   }
 }

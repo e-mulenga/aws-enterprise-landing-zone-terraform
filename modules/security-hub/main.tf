@@ -106,3 +106,14 @@ resource "aws_sns_topic_subscription" "email" {
   protocol  = "email"
   endpoint  = var.alert_email
 }
+
+# ---- Cross-Region aggregation (free) ----------------------------
+# Shows findings from the listed Regions in this one. Security Hub must also be enabled in those Regions.
+resource "aws_securityhub_finding_aggregator" "this" {
+  count = var.enable_finding_aggregator ? 1 : 0
+
+  linking_mode      = "SPECIFIED_REGIONS"
+  specified_regions = var.aggregator_regions
+
+  depends_on = [aws_securityhub_account.main]
+}

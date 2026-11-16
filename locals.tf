@@ -64,3 +64,54 @@ locals {
 
   deploy_vpc_endpoints_dr = var.enable_interface_endpoints_dr
 }
+
+# ============================================================
+# Per-OU service control policies (built-in guards plus var.ou_scps)
+# ============================================================
+locals {
+  builtin_ou_scps = var.enable_ou_scps ? {
+    "sandbox-cost-guard" = {
+      description = "Sandbox accounts: small instance families only and no NAT gateways."
+      target_ous  = ["sandbox"]
+      statements_json = jsonencode([
+        {
+          Sid       = "DenyLargeInstances"
+          Effect    = "Deny"
+          Action    = "ec2:RunInstances"
+          Resource  = "arn:aws:ec2:*:*:instance/*"
+          Condition = { StringNotLike = { "ec2:InstanceType" = ["t3.*", "t3a.*", "t4g.*"] } }
+        },
+        {
+          Sid      = "DenyNatGateways"
+          Effect   = "Deny"
+          Action   = "ec2:CreateNatGateway"
+          Resource = "*"
+        },
+      ])
+    }
+    "workload-telemetry-guard" = {
+      description = "Workload accounts cannot switch off network telemetry or leave the organisation."
+      target_ous  = ["workloads"]
+      statements_json = jsonencode([
+        {
+          Sid    = "DenyDisableNetworkTelemetry"
+          Effect = "Deny"
+          Action = [
+            "ec2:DeleteFlowLogs",
+            "route53resolver:DeleteResolverQueryLogConfig",
+            "route53resolver:DisassociateResolverQueryLogConfig",
+          ]
+          Resource = "*"
+        },
+        {
+          Sid      = "DenyLeaveOrganization"
+          Effect   = "Deny"
+          Action   = "organizations:LeaveOrganization"
+          Resource = "*"
+        },
+      ])
+    }
+  } : {}
+
+  ou_scps = merge(local.builtin_ou_scps, var.ou_scps)
+}

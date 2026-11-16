@@ -36,13 +36,30 @@ resource "aws_iam_openid_connect_provider" "github" {
 }
 
 locals {
+  # Per-repository roles are expanded into the same shape as var.roles. Subjects are exact:
+  # one per branch, per environment and (optionally) pull requests of that repository.
+  repository_roles = {
+    for key, r in var.repositories : key => {
+      description = "GitHub Actions role for ${r.repository}"
+      subjects = concat(
+        [for b in r.branches : "repo:${r.repository}:ref:refs/heads/${b}"],
+        [for e in r.environments : "repo:${r.repository}:environment:${e}"],
+        r.allow_pull_requests ? ["repo:${r.repository}:pull_request"] : []
+      )
+      policy_arns          = r.policy_arns
+      max_session_duration = r.max_session_duration
+    }
+  }
+
+  all_roles = merge(var.roles, local.repository_roles)
+
   provider_arn = one(concat(
     data.aws_iam_openid_connect_provider.github[*].arn,
     aws_iam_openid_connect_provider.github[*].arn,
   ))
 
   role_policy_attachments = merge([
-    for role_name, role in var.roles : {
+    for role_name, role in local.all_roles : {
       for arn in role.policy_arns : "${role_name}|${arn}" => {
         role       = role_name
         policy_arn = arn
@@ -52,7 +69,7 @@ locals {
 }
 
 data "aws_iam_policy_document" "trust" {
-  for_each = var.roles
+  for_each = local.all_roles
 
   statement {
     effect  = "Allow"
@@ -78,7 +95,7 @@ data "aws_iam_policy_document" "trust" {
 }
 
 resource "aws_iam_role" "github" {
-  for_each = var.roles
+  for_each = local.all_roles
 
   name                 = "${var.organization_name}-${var.environment}-gha-${each.key}"
   description          = each.value.description

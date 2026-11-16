@@ -491,6 +491,14 @@ aws-enterprise-landing-zone-terraform/
 │   ├── iam-identity-center/       # Workforce identity management, permission sets, group access and account assignments
 │   ├── dns/                       # Route53 hosted zones, DNS governance and ACM certificate management
 │   ├── backup/                    # Backup governance, recovery vaults, retention policies and disaster recovery protection
+│   ├── access-analyzer/           # IAM Access Analyzer for external access findings
+│   ├── inspector/                 # Amazon Inspector v2 scanning (opt-in)
+│   ├── macie/                     # Amazon Macie sensitive data discovery (opt-in)
+│   ├── config-compliance/         # Config conformance pack and organisation aggregator (opt-in)
+│   ├── tag-policies/              # Organisation tag policy (report-only by default)
+│   ├── cost-reporting/            # Cost and Usage Report delivered to S3 in us-east-1 (opt-in)
+│   ├── dns-security/              # Route 53 Resolver query logging and DNS Firewall blocklist (opt-in)
+│   ├── observability/             # CloudWatch cross-account observability sink (opt-in)
 │   └── monitoring/                # Operational visibility, CloudWatch dashboards, alarms, EventBridge integration, SNS notifications and budgets
 │
 ├── environments/
@@ -1185,6 +1193,26 @@ data.terraform_remote_state.landing_zone.outputs.interface_endpoint_security_gro
 ```
 
 Because private DNS allows only one endpoint per service per VPC, downstream repositories must consume these endpoints and never create their own. These outputs are additive, so `contract_schema_version` is unchanged.
+
+### Security, Governance and Cost Outputs
+
+| Output | Description |
+|---|---|
+| `access_analyzer_arn` | IAM Access Analyzer ARN. `null` when off. |
+| `inspector_enabled_resource_types` | Resource types Inspector scans. `[]` when off. |
+| `macie_enabled` | `true` when Macie is enabled. |
+| `config_conformance_pack_name`, `config_aggregator_name` | Conformance pack and aggregator names. `null` when off. |
+| `tag_policy_id` | Organisation tag policy ID. `null` when off. |
+| `ou_scp_policy_ids` | Per-OU SCP IDs by policy name. |
+| `identity_center_permission_set_arns` | Permission set ARNs by name. `{}` when Identity Center is off. |
+| `github_oidc_role_arns` | Now also contains the per-repository roles created from `github_oidc_repositories`. |
+| `additional_account_ids` | Accounts vended through `additional_accounts`, by name. |
+| `cost_report_bucket_name` | Cost and Usage Report bucket (us-east-1). `null` when off. |
+| `dns_query_log_group_name`, `dns_firewall_rule_group_id` | DNS query log group and firewall rule group for the primary VPC. `null` when off. |
+| `observability_sink_arn` | Sink that member accounts link to with `aws_oam_link`. `null` when off. |
+| `kms_dr_replica_key_arns`, `backup_dr_key_arn` | eu-west-1 replicas of the shared keys. Empty or `null` unless `dr_kms_replicas_enabled = true` with customer managed keys. |
+
+These outputs are additive, so `contract_schema_version` stays `"2"`.
 
 ---
 

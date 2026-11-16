@@ -11,12 +11,12 @@ allowed_regions = ["af-south-1", "eu-west-1", "us-east-1"]
 # AWS managed keys cost nothing. Set false to create the five shared CMKs (USD 1/month each, per environment).
 use_aws_managed_keys    = true
 key_rotation_enabled    = true
-dr_kms_replicas_enabled = false
+dr_kms_replicas_enabled = false # USD 1 per replica per month; only with customer managed keys
 
 # ---- Governance ----
 enable_scp             = true
-enable_identity_center = false
-enable_ai_governance   = false
+enable_identity_center = true
+enable_ai_governance   = true
 create_member_accounts = true
 
 # ---- Detective controls (existing org-level services are adopted, not recreated) ----
@@ -30,6 +30,12 @@ config_rule_set                = "core"
 guardduty_enabled              = true
 securityhub_enabled            = true
 securityhub_standards          = ["fsbp"]
+enable_access_analyzer         = true  # free
+enable_config_aggregator       = false # free, needs the management or delegated administrator account
+enable_config_conformance_pack = false # USD 0.001 per rule evaluation
+enable_inspector               = false # billed per scanned image, function or instance
+enable_macie                   = false # billed per bucket and per GB inspected
+enable_tag_policy              = true  # free; enable the TAG_POLICY type on the root first
 
 # ---- Retention (lower = cheaper) ----
 log_archive_expiry_days = 730

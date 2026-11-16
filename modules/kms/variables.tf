@@ -50,3 +50,9 @@ variable "logging_account_id" {
     error_message = "logging_account_id must be empty or a 12-digit account ID."
   }
 }
+
+variable "dr_replicas_enabled" {
+  type        = bool
+  default     = false
+  description = "Make the shared keys multi-Region and create eu-west-1 replicas. Only applies when use_aws_managed_keys = false."
+}

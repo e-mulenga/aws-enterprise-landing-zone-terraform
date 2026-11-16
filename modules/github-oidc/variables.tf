@@ -29,3 +29,21 @@ variable "roles" {
     error_message = "Every subject must start with repo:OWNER/REPO and must not be a wildcard for all repositories."
   }
 }
+
+variable "repositories" {
+  description = "One role per GitHub repository (OWNER/REPO). Trust is limited to the listed branches, environments and, optionally, pull requests of that repository."
+  type = map(object({
+    repository           = string
+    branches             = optional(list(string), ["main"])
+    environments         = optional(list(string), [])
+    allow_pull_requests  = optional(bool, false)
+    policy_arns          = optional(list(string), [])
+    max_session_duration = optional(number, 3600)
+  }))
+  default = {}
+
+  validation {
+    condition     = alltrue([for r in var.repositories : can(regex("^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$", r.repository))])
+    error_message = "repository must be OWNER/REPO with no wildcards."
+  }
+}

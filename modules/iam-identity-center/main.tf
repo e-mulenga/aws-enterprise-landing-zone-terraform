@@ -88,6 +88,47 @@ resource "aws_ssoadmin_managed_policy_attachment" "security_auditor" {
   managed_policy_arn = "arn:aws:iam::aws:policy/SecurityAudit"
 }
 
+# ---- Custom Permission Sets ---------------------------------
+resource "aws_ssoadmin_permission_set" "custom" {
+  for_each = var.custom_permission_sets
+
+  name             = each.key
+  description      = each.value.description
+  instance_arn     = local.sso_instance_arn
+  session_duration = each.value.session_duration
+
+  tags = each.value.tags
+}
+
+resource "aws_ssoadmin_managed_policy_attachment" "custom" {
+  for_each = {
+    for pair in flatten([
+      for name, ps in var.custom_permission_sets : [
+        for arn in ps.managed_policies : {
+          key  = "${name}__${arn}"
+          name = name
+          arn  = arn
+        }
+      ]
+    ]) : pair.key => pair
+  }
+
+  instance_arn       = local.sso_instance_arn
+  permission_set_arn = aws_ssoadmin_permission_set.custom[each.value.name].arn
+  managed_policy_arn = each.value.arn
+}
+
+resource "aws_ssoadmin_permission_set_inline_policy" "custom" {
+  for_each = {
+    for name, ps in var.custom_permission_sets : name => ps
+    if ps.inline_policy != null
+  }
+
+  instance_arn       = local.sso_instance_arn
+  permission_set_arn = aws_ssoadmin_permission_set.custom[each.key].arn
+  inline_policy      = each.value.inline_policy
+}
+
 # ---- Groups -------------------------------------------------
 resource "aws_identitystore_group" "cloud_admins" {
   display_name      = var.admin_group_name
@@ -118,4 +159,56 @@ resource "aws_ssoadmin_account_assignment" "admin_assignments" {
   principal_type     = "GROUP"
   target_id          = each.value
   target_type        = "AWS_ACCOUNT"
+}
+
+# ---- Default assignments for the two other groups -------------
+# Developers work in the development account only; auditors read every account.
+resource "aws_ssoadmin_account_assignment" "developer_assignments" {
+  for_each = { for k, v in var.accounts : k => v if contains(var.developer_account_keys, k) }
+
+  instance_arn       = local.sso_instance_arn
+  permission_set_arn = aws_ssoadmin_permission_set.developer.arn
+  principal_id       = aws_identitystore_group.developers.group_id
+  principal_type     = "GROUP"
+  target_id          = each.value
+  target_type        = "AWS_ACCOUNT"
+}
+
+resource "aws_ssoadmin_account_assignment" "auditor_assignments" {
+  for_each = var.accounts
+
+  instance_arn       = local.sso_instance_arn
+  permission_set_arn = aws_ssoadmin_permission_set.security_auditor.arn
+  principal_id       = aws_identitystore_group.security_auditors.group_id
+  principal_type     = "GROUP"
+  target_id          = each.value
+  target_type        = "AWS_ACCOUNT"
+}
+
+# ---- Extra permission sets (optional) -------------------------
+resource "aws_ssoadmin_permission_set" "custom" {
+  for_each = var.custom_permission_sets
+
+  name             = each.key
+  description      = each.value.description
+  instance_arn     = local.sso_instance_arn
+  session_duration = each.value.session_duration
+
+  tags = { Purpose = "custom" }
+}
+
+locals {
+  custom_policy_attachments = merge([
+    for name, ps in var.custom_permission_sets : {
+      for arn in ps.managed_policy_arns : "${name}|${arn}" => { set = name, arn = arn }
+    }
+  ]...)
+}
+
+resource "aws_ssoadmin_managed_policy_attachment" "custom" {
+  for_each = local.custom_policy_attachments
+
+  instance_arn       = local.sso_instance_arn
+  permission_set_arn = aws_ssoadmin_permission_set.custom[each.value.set].arn
+  managed_policy_arn = each.value.arn
 }

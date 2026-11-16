@@ -183,6 +183,25 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "config" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "config" {
+  count = local.create_config ? 1 : 0
+
+  bucket = aws_s3_bucket.config[0].id
+
+  rule {
+    id     = "expire-config-history"
+    status = "Enabled"
+
+    filter {}
+
+    expiration { days = var.archive_expiry_days }
+
+    noncurrent_version_expiration { noncurrent_days = 90 }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.config]
+}
+
 resource "aws_s3_bucket_policy" "config" {
   count = local.create_config ? 1 : 0
 
@@ -271,4 +290,35 @@ resource "aws_s3_bucket_public_access_block" "access_logs" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
+}
+
+# Findings exports and access logs are short-lived: they only support investigations.
+resource "aws_s3_bucket_lifecycle_configuration" "guardduty" {
+  count = local.create_guardduty ? 1 : 0
+
+  bucket = aws_s3_bucket.guardduty[0].id
+
+  rule {
+    id     = "expire-findings-export"
+    status = "Enabled"
+
+    filter {}
+
+    expiration { days = var.access_log_expiry_days }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "access_logs" {
+  count = local.create_access_logs ? 1 : 0
+
+  bucket = aws_s3_bucket.access_logs[0].id
+
+  rule {
+    id     = "expire-access-logs"
+    status = "Enabled"
+
+    filter {}
+
+    expiration { days = var.access_log_expiry_days }
+  }
 }

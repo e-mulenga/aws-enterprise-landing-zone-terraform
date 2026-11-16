@@ -44,6 +44,34 @@ variable "log_retention_days" {
   description = "Kept for interface compatibility; not used by this module."
 }
 
+variable "archive_expiry_days" {
+  type        = number
+  default     = 2557
+  description = "Days before CloudTrail and Config archive objects expire. The default keeps the previous 7 year behaviour; the root module passes log_archive_expiry_days."
+
+  validation {
+    condition     = var.archive_expiry_days >= 366
+    error_message = "archive_expiry_days must be at least 366 because objects move to Glacier after 365 days."
+  }
+}
+
+variable "access_log_expiry_days" {
+  type        = number
+  default     = 90
+  description = "Days before S3 access logs and GuardDuty exports expire."
+
+  validation {
+    condition     = var.access_log_expiry_days >= 1
+    error_message = "access_log_expiry_days must be at least 1."
+  }
+}
+
+variable "log_archive_expiry_days" {
+  type        = number
+  description = "Days before CloudTrail/Config archive objects expire. Lower = cheaper. Raise it only if a regulation requires longer retention."
+  default     = 730
+}
+
 variable "organization_id" {
   type        = string
   description = "AWS Organizations ID (o-xxxxxxxxxx) used in the bucket policy conditions."

@@ -53,3 +53,20 @@ variable "sns_kms_key_id" {
   default     = null
   description = "CMK for the alerts topic. Must trust cloudwatch.amazonaws.com and events.amazonaws.com. null = unencrypted."
 }
+
+variable "enable_cost_anomaly_detection" {
+  type        = bool
+  default     = true
+  description = "Cost Anomaly Detection monitor per AWS service plus a daily e-mail summary (free). The subscription needs budget_alert_email."
+}
+
+variable "anomaly_threshold_usd" {
+  type        = number
+  default     = 5
+  description = "Minimum absolute impact in USD before an anomaly is e-mailed."
+
+  validation {
+    condition     = var.anomaly_threshold_usd >= 1
+    error_message = "anomaly_threshold_usd must be at least 1."
+  }
+}

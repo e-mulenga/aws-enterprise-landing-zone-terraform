@@ -125,6 +125,8 @@ locals {
     "cloudtrail-enabled"                     = "CLOUD_TRAIL_ENABLED"
     "cloudtrail-encryption-enabled"          = "CLOUD_TRAIL_ENCRYPTION_ENABLED"
     "cloudtrail-log-file-validation-enabled" = "CLOUD_TRAIL_LOG_FILE_VALIDATION_ENABLED"
+    # The console rule name restricted-ssh maps to the identifier INCOMING_SSH_DISABLED.
+    "restricted-ssh" = "INCOMING_SSH_DISABLED"
   }
 }
 

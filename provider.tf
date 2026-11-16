@@ -2,8 +2,15 @@
 # AWS Enterprise Landing Zone — Provider & Version Constraints
 # ============================================================
 # Portfolio Standard: provider.tf contains BOTH the terraform{}
-# block (required_version + required_providers) AND provider
-# configurations. No separate versions.tf is used.
+# Provider aliases are static: Terraform cannot create providers with
+# for_each / count, so every Region the landing zone touches has its own block.
+#
+#   aws             primary Region (var.aws_region, af-south-1)
+#   aws.af_south_1  primary Region, explicit (networking)
+#   aws.eu_west_1   disaster recovery Region (networking, backup DR vault, AI)
+#   aws.us_east_1   global services (ACM certificates for CloudFront)
+#   aws.logging     Region that holds the central log buckets (var.logging_region)
+#   aws.security    reserved for the Security account once member accounts exist
 # ============================================================
 
 terraform {
@@ -47,7 +54,12 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project = var.organization_name
+      Environment = var.environment
+      Project     = "aws-enterprise-landing-zone"
+      ManagedBy   = "Terraform"
+      Owner       = var.owner
+      CostCenter  = var.cost_center
+      Repository  = "aws-enterprise-landing-zone-terraform"
     }
   }
 }
@@ -58,7 +70,29 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project = var.organization_name
+      Environment = var.environment
+      Project     = "aws-enterprise-landing-zone"
+      ManagedBy   = "Terraform"
+      Owner       = var.owner
+      CostCenter  = var.cost_center
+      Repository  = "aws-enterprise-landing-zone-terraform"
+    }
+  }
+}
+
+# ---- us-east-1: global-service endpoints (CloudFront certificates, CUR, alarms on global events) ----
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+
+  default_tags {
+    tags = {
+      Environment = var.environment
+      Project     = "aws-enterprise-landing-zone"
+      ManagedBy   = "Terraform"
+      Owner       = var.owner
+      CostCenter  = var.cost_center
+      Repository  = "aws-enterprise-landing-zone-terraform"
     }
   }
 }

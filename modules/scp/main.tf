@@ -134,3 +134,39 @@ resource "aws_organizations_policy_attachment" "region_restriction" {
   policy_id = aws_organizations_policy.region_restriction.id
   target_id = var.organization_root_id
 }
+
+# ---- 3. Per-OU policies (optional) --------------------------
+# Each entry becomes one SCP attached to the OUs listed in target_ou_ids. The root already carries two policies plus
+# FullAWSAccess, so a target may take at most two more (limit: 5 per target).
+resource "aws_organizations_policy" "ou_policy" {
+  for_each = var.ou_policies
+
+  name        = each.key
+  description = each.value.description
+  type        = "SERVICE_CONTROL_POLICY"
+
+  content = jsonencode({
+    Version   = "2012-10-17"
+    Statement = jsondecode(each.value.statements_json)
+  })
+}
+
+locals {
+  # Flatten the map of policies → OU IDs into individual attachment pairs.
+  ou_policy_attachments = merge([
+    for policy_name, p in var.ou_policies : {
+      for ou_id in p.target_ou_ids :
+      "${policy_name}__${ou_id}" => {
+        policy_name = policy_name
+        ou_id       = ou_id
+      }
+    }
+  ]...)
+}
+
+resource "aws_organizations_policy_attachment" "ou_policy" {
+  for_each = local.ou_policy_attachments
+
+  policy_id = aws_organizations_policy.ou_policy[each.value.policy_name].id
+  target_id = each.value.ou_id
+}

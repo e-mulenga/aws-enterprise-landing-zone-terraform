@@ -34,3 +34,26 @@ variable "alert_email" {
   description = "E-mail for critical/high Security Hub findings. Empty = no subscription."
   default     = ""
 }
+
+variable "alert_severity_labels" {
+  type        = list(string)
+  default     = ["CRITICAL", "HIGH"]
+  description = "Severity labels of NEW findings that are e-mailed. Add MEDIUM for Access Analyzer or Inspector noise you want to see."
+
+  validation {
+    condition     = alltrue([for s in var.alert_severity_labels : contains(["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFORMATIONAL"], s)])
+    error_message = "alert_severity_labels may only contain CRITICAL, HIGH, MEDIUM, LOW and INFORMATIONAL."
+  }
+}
+
+variable "enable_finding_aggregator" {
+  type        = bool
+  default     = false
+  description = "Aggregate findings from aggregator_regions into this Region."
+}
+
+variable "aggregator_regions" {
+  type        = list(string)
+  default     = ["eu-west-1"]
+  description = "Regions linked to the aggregator."
+}

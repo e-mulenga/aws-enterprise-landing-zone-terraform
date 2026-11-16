@@ -8,6 +8,7 @@
 # A value is null when its service is not deployed in this environment.
 # ============================================================
 
+# ---------- Accounts / Organizational Units / Organizational ID -------------
 output "organization_id" {
   description = "AWS Organisation ID."
   value       = module.organization.organization_id
@@ -358,104 +359,9 @@ output "cloudtrail_log_group_name" {
   value = try(module.cloudtrail[0].log_group_name, var.existing_cloudtrail_log_group == "" ? null : var.existing_cloudtrail_log_group)
 }
 
-# ---- Audit & detection services (cost money, OFF by default) -----------
-variable "enable_cloudtrail" {
-  type        = bool
-  description = "Create the trail with Terraform. false when a trail already exists (console / other stack)."
-  default     = false
-}
-
-variable "is_organization_trail" {
-  type        = bool
-  description = "Organization trail. Needs the management or a delegated admin account."
-  default     = false
-}
-
-variable "cloudtrail_data_events_enabled" {
-  type        = bool
-  description = "S3 and Lambda data events (billed per event)."
-  default     = false
-}
-
-variable "cloudtrail_insights_enabled" {
-  type        = bool
-  description = "CloudTrail Insights (billed per event analysed)."
-  default     = false
-}
-
-variable "existing_cloudtrail_log_group" {
-  type        = string
-  description = "CloudWatch Logs group of an existing trail, used by the dashboard and alarms when this stack does not create the trail."
-  default     = ""
-}
-
-variable "enable_config" {
-  type        = bool
-  description = "Create the AWS Config recorder, delivery channel and rules (billed per item and per evaluation). AWS allows one recorder per Region."
-  default     = false
-}
-
-variable "existing_config_recorder_name" {
-  type        = string
-  description = "Name of an existing Config recorder, re-exported as config_recorder_name when enable_config = false."
-  default     = ""
-}
-
-variable "config_recording_frequency" {
-  type    = string
-  default = "CONTINUOUS"
-}
-
-variable "config_rule_set" {
-  type        = string
-  description = "core = 9 rules, full = 20 rules."
-  default     = "core"
-}
-
-variable "guardduty_enabled" {
-  type        = bool
-  description = "Create / manage GuardDuty. 30-day free trial, then usage-based."
-  default     = false
-}
-
-variable "create_guardduty_detector" {
-  type        = bool
-  description = "false = a detector already exists in the Region; look it up instead."
-  default     = true
-}
-
-variable "existing_guardduty_detector_id" {
-  type        = string
-  description = "Detector ID re-exported as guardduty_detector_id when guardduty_enabled = false."
-  default     = ""
-}
-
-variable "guardduty_organization_aware" {
-  type    = bool
-  default = false
-}
-
-variable "securityhub_enabled" {
-  type        = bool
-  description = "Enable Security Hub. 30-day free trial, then billed per protected resource."
-  default     = false
-}
-
-variable "securityhub_standards" {
-  type        = list(string)
-  description = "Standards to subscribe to: fsbp, cis, nist."
-  default     = ["fsbp"]
-}
-
-variable "securityhub_organization_aware" {
-  type    = bool
-  default = false
-}
-
-variable "alert_email" {
-  type        = string
-  description = "Email for security alerts and budget notifications."
-  default     = ""
+output "config_recorder_name" {
+  description = "AWS Config recorder name (managed or existing). null if none."
+  value       = one(module.config[*].recorder_name)
 }
 
 # ---------- Monitoring --------------
@@ -483,11 +389,6 @@ output "monitoring_topic_arn" {
 output "guardduty_detector_id" {
   description = "GuardDuty detector ID (managed or existing). null if none."
   value       = local.guardduty_detector_id
-}
-
-output "config_recorder_name" {
-  description = "AWS Config recorder name (managed or existing). null if none."
-  value       = local.config_recorder_name
 }
 
 output "security_hub_enabled" {
@@ -519,6 +420,81 @@ output "bedrock_approved_models_policy_arn" {
 
 output "ai_audit_bucket_name" {
   value = try(module.ai_governance[0].ai_audit_bucket_name, null)
+}
+
+output "access_analyzer_arn" {
+  description = "ARN of the IAM Access Analyzer, or null when it is off."
+  value       = try(module.access_analyzer[0].analyzer_arn, null)
+}
+
+output "inspector_enabled_resource_types" {
+  description = "Resource types Amazon Inspector scans, or an empty list when it is off."
+  value       = try(module.inspector[0].enabled_resource_types, [])
+}
+
+output "macie_enabled" {
+  description = "true when Amazon Macie is enabled in this account."
+  value       = length(module.macie) > 0
+}
+
+output "config_conformance_pack_name" {
+  description = "Name of the baseline Config conformance pack, or null when it is off."
+  value       = try(module.config_compliance[0].conformance_pack_name, null)
+}
+
+output "config_aggregator_name" {
+  description = "Name of the organisation Config aggregator, or null when it is off."
+  value       = try(module.config_compliance[0].aggregator_name, null)
+}
+
+output "tag_policy_id" {
+  description = "ID of the organisation tag policy, or null when it is off."
+  value       = try(module.tag_policies[0].tag_policy_id, null)
+}
+
+output "ou_scp_policy_ids" {
+  description = "IDs of the per-OU service control policies, by policy name."
+  value       = try(module.scp[0].ou_policy_ids, {})
+}
+
+output "identity_center_permission_set_arns" {
+  description = "IAM Identity Center permission set ARNs by name, or an empty map when Identity Center is off."
+  value       = try(module.iam_identity_center[0].permission_set_arns, {})
+}
+
+output "additional_account_ids" {
+  description = "IDs of the accounts vended through additional_accounts, by name."
+  value       = module.accounts.additional_account_ids
+}
+
+output "cost_report_bucket_name" {
+  description = "Bucket (us-east-1) holding the Cost and Usage Report, or null when it is off."
+  value       = try(module.cost_reporting[0].cur_bucket_name, null)
+}
+
+output "dns_query_log_group_name" {
+  description = "Log group with Route 53 Resolver query logs for the af-south-1 VPC, or null when off."
+  value       = try(module.dns_security_af_south_1[0].query_log_group_name, null)
+}
+
+output "dns_firewall_rule_group_id" {
+  description = "Route 53 DNS Firewall rule group for the af-south-1 VPC, or null when no domains are blocked."
+  value       = try(module.dns_security_af_south_1[0].firewall_rule_group_id, null)
+}
+
+output "observability_sink_arn" {
+  description = "CloudWatch cross-account observability sink. Member accounts link to it with aws_oam_link. null when off."
+  value       = try(module.observability[0].sink_arn, null)
+}
+
+output "kms_dr_replica_key_arns" {
+  description = "eu-west-1 replicas of the shared keys by purpose. Empty unless dr_kms_replicas_enabled = true with customer managed keys."
+  value       = module.kms.dr_replica_key_arns
+}
+
+output "backup_dr_key_arn" {
+  description = "eu-west-1 replica of shared-backup-key, or null."
+  value       = module.kms.backup_dr_key_arn
 }
 
 output "contract_schema_version" {

@@ -65,3 +65,8 @@ output "ou_ids" {
     production     = aws_organizations_organizational_unit.workloads_prod.id
   }
 }
+
+output "enabled_policy_types" {
+  description = "Policy types enabled on the organisation root, for example SERVICE_CONTROL_POLICY and TAG_POLICY."
+  value       = [for p in data.aws_organizations_organization.main.roots[0].policy_types : p.type if p.status == "ENABLED"]
+}

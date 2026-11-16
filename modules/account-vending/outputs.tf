@@ -28,3 +28,8 @@ output "account_map" {
     production      = aws_organizations_account.production.id
   }
 }
+
+output "additional_account_ids" {
+  description = "IDs of the accounts vended through additional_accounts, by name."
+  value       = { for k, a in aws_organizations_account.additional : k => a.id }
+}

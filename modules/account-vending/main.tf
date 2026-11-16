@@ -92,3 +92,26 @@ resource "aws_organizations_account" "production" {
     ignore_changes  = [email, name]
   }
 }
+
+# ---- Additional accounts (vending) ----------------------------
+# One entry creates one member account in the chosen OU. Accounts cannot be deleted through Terraform,
+# so every entry is protected from destroy.
+resource "aws_organizations_account" "additional" {
+  for_each = var.additional_accounts
+
+  name                       = each.key
+  email                      = each.value.email
+  iam_user_access_to_billing = "DENY"
+  parent_id                  = var.ou_ids[each.value.ou]
+  role_name                  = "OrganizationAccountAccessRole"
+
+  tags = merge(
+    { AccountType = each.value.account_type, Environment = each.value.environment },
+    each.value.tags
+  )
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = [email, name]
+  }
+}

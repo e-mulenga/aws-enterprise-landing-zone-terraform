@@ -50,3 +50,33 @@ resource "aws_kms_alias" "shared" {
   name          = "alias/${var.organization_name}-${var.environment}-shared-${each.key}"
   target_key_id = each.value.key_id
 }
+
+# ---- eu-west-1 replicas (opt-in) ------------------------------
+# Same key material in the DR Region, so DR copies of backups and data can be decrypted there.
+# Each replica bills USD 1 per month like any other key. Enabling this on existing keys replaces them
+# because multi_region cannot be changed in place.
+resource "aws_kms_replica_key" "shared" {
+  for_each = local.create_cmk && var.dr_replicas_enabled ? local.shared_keys : {}
+  provider = aws.dr
+
+  description             = "Replica of ${each.value} - ${var.organization_name} ${var.environment}"
+  primary_key_arn         = aws_kms_key.shared[each.key].arn
+  deletion_window_in_days = var.deletion_window_in_days
+
+  tags = {
+    Name    = "${var.organization_name}-${var.environment}-shared-${each.key}-key-replica"
+    Purpose = "shared-${each.key}-replica"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_kms_alias" "replica" {
+  for_each = aws_kms_replica_key.shared
+  provider = aws.dr
+
+  name          = "alias/${var.organization_name}-${var.environment}-shared-${each.key}"
+  target_key_id = each.value.key_id
+}
