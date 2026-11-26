@@ -1216,7 +1216,7 @@ These outputs are additive, so `contract_schema_version` stays `"2"`.
 
 ---
 
-## Author
+## 👤 Author
 
 **Emmanuel Mulenga** — Multi-Cloud Engineer
 - 🌐 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/emmanuel-mulenga)
