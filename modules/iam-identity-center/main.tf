@@ -12,7 +12,7 @@ locals {
 # ---- Permission Sets ----------------------------------------
 resource "aws_ssoadmin_permission_set" "administrator" {
   name             = "AdministratorAccess"
-  description      = "Full administrator access — break-glass / platform engineering only."
+  description      = "Full administrator access - break-glass / platform engineering only."
   instance_arn     = local.sso_instance_arn
   session_duration = "PT2H"
 
@@ -42,7 +42,7 @@ resource "aws_ssoadmin_managed_policy_attachment" "read_only" {
 
 resource "aws_ssoadmin_permission_set" "developer" {
   name             = "DeveloperAccess"
-  description      = "Scoped developer access — compute, storage, messaging."
+  description      = "Scoped developer access - compute, storage, messaging."
   instance_arn     = local.sso_instance_arn
   session_duration = "PT8H"
 
@@ -75,7 +75,7 @@ resource "aws_ssoadmin_permission_set_inline_policy" "developer" {
 
 resource "aws_ssoadmin_permission_set" "security_auditor" {
   name             = "SecurityAuditorAccess"
-  description      = "Security auditor — read-only security service access."
+  description      = "Security auditor - read-only security service access."
   instance_arn     = local.sso_instance_arn
   session_duration = "PT4H"
 

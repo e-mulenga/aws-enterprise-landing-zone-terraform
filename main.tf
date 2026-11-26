@@ -178,6 +178,10 @@ module "iam_identity_center" {
   count  = var.enable_identity_center && var.create_member_accounts ? 1 : 0
   source = "./modules/iam-identity-center"
 
+  providers = {
+    aws = aws.us-east-1
+  }
+
   environment            = var.environment
   organization_name      = var.organization_name
   admin_group_name       = var.identity_center_admin_group
